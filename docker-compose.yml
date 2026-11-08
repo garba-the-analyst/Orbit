@@ -1,0 +1,53 @@
+# One command to run all of ORBIT: PostgreSQL, the API and the web app.
+#
+#   docker compose up --build
+#
+# Then open http://localhost:8080 (app) and http://localhost:4000/docs (API docs).
+# Demo accounts use the password Orbit@2026 (shown on the sign-in screen).
+#
+# This file runs ORBIT in DEMO mode: fictional demo shops are loaded, and payments are the test-mode mock.
+# The secrets below are fixed, public, demo-only values so that restarting does not sign people out.
+# NEVER reuse them anywhere real. For a real deployment set NODE_ENV=production, generate your own secrets,
+# and replace the mock payment provider (see docs/ARCHITECTURE.md, section 12).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: orbit
+      POSTGRES_PASSWORD: orbit
+      POSTGRES_DB: orbit
+    volumes:
+      - orbit-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orbit -d orbit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      PORT: "4000"
+      DB_TYPE: postgres
+      DATABASE_URL: postgres://orbit:orbit@db:5432/orbit
+      SEED_ON_BOOT: "true"
+      PAYMENT_PROVIDER: mock
+      JWT_SECRET: demo-only-jwt-secret-change-me-0123456789
+      PIN_SECRET: demo-only-pin-secret-change-me-0123456789
+      WEBHOOK_SECRET: demo-only-webhook-secret-change-me-0123456789
+
+  web:
+    build: ./mobile
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  orbit-db:

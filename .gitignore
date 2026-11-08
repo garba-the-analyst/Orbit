@@ -1,0 +1,12 @@
+node_modules
+dist
+data
+coverage
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+*.log
+mobile/e2e/shots
+mobile/android
+mobile/ios

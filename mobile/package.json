@@ -1,0 +1,43 @@
+{
+  "name": "orbit-mobile",
+  "version": "1.0.0",
+  "description": "ORBIT customer, merchant, rider and admin app (Vue 3 + Ionic + Capacitor)",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vue-tsc --noEmit && vite build",
+    "typecheck": "vue-tsc --noEmit",
+    "preview": "vite preview --host --port 4173",
+    "test": "vitest run",
+    "cap:sync": "npm run build && cap sync",
+    "cap:android": "npm run build && cap sync android && cap open android"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/status-bar": "^8.0.4",
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@ionic/vue": "^8.8.19",
+    "@ionic/vue-router": "^8.8.19",
+    "ionicons": "^7.4.0",
+    "pinia": "^3.0.4",
+    "socket.io-client": "^4.8.4",
+    "vue": "^3.5.45",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "typescript": "~5.7",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0",
+    "vue-tsc": "^3.3.14"
+  },
+  "private": true,
+  "type": "module"
+}

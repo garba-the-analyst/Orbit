@@ -1,0 +1,141 @@
+/* Maps ORBIT's tokens onto Ionic's component variables. */
+
+:root {
+  --ion-font-family: var(--font-body);
+  --ion-background-color: var(--paper);
+  --ion-text-color: var(--ink);
+  --ion-text-color-rgb: 22, 26, 82;
+
+  --ion-color-primary: #161a52;
+  --ion-color-primary-rgb: 22, 26, 82;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #13174a;
+  --ion-color-primary-tint: #2d3165;
+
+  --ion-color-success: #0e8a4f;
+  --ion-color-success-rgb: 14, 138, 79;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #0c7945;
+  --ion-color-success-tint: #26965f;
+
+  --ion-toolbar-background: transparent;
+  --ion-toolbar-color: var(--ink);
+  --ion-tab-bar-background: var(--surface);
+  --ion-safe-area-top: env(safe-area-inset-top);
+  --ion-safe-area-bottom: env(safe-area-inset-bottom);
+}
+
+ion-content {
+  --background: var(--paper);
+}
+
+/* Toolbars on detail pages: flat, transparent, no hairline shadow. */
+ion-header ion-toolbar {
+  --background: var(--paper);
+  --border-width: 0;
+  --min-height: 52px;
+}
+ion-header::after {
+  display: none;
+}
+ion-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--t-md);
+  letter-spacing: -0.01em;
+}
+ion-back-button {
+  --color: var(--ink);
+  --icon-font-size: 22px;
+}
+
+/* Bottom tab bar: the active tab carries the yellow satellite dot. */
+ion-tab-bar {
+  --border: 0;
+  border-top: 1px solid var(--line);
+  height: calc(60px + env(safe-area-inset-bottom));
+  padding-top: 4px;
+}
+ion-tab-button {
+  --color: var(--slate);
+  --color-selected: var(--ink);
+  --padding-top: 8px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0;
+  position: relative;
+}
+ion-tab-button ion-icon {
+  font-size: 23px;
+  margin-bottom: 1px;
+}
+ion-tab-button.tab-selected::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+ion-tab-button .tab-badge {
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 6px);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--ink);
+  color: #fff;
+  font: 700 0.6875rem/18px var(--font-display);
+  text-align: center;
+}
+
+/* Toggles */
+ion-toggle {
+  --track-background: #c9cde0;
+  --track-background-checked: var(--good);
+  --handle-background: #fff;
+  --handle-background-checked: #fff;
+}
+
+/* Refresher */
+ion-refresher-content {
+  --color: var(--slate);
+}
+
+/* Bottom sheets */
+ion-modal.sheet {
+  --border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+  --background: var(--surface);
+  --box-shadow: 0 -8px 32px rgba(22, 26, 82, 0.18);
+}
+ion-modal.sheet::part(handle) {
+  background: var(--line);
+  width: 40px;
+  height: 5px;
+}
+
+/* Toasts and alerts follow the brand type */
+ion-toast {
+  --background: var(--ink);
+  --color: #fff;
+  --border-radius: 12px;
+  font-family: var(--font-body);
+}
+ion-alert {
+  --background: var(--surface);
+  --border-radius: 20px;
+  font-family: var(--font-body);
+}
+ion-alert .alert-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+}

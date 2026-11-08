@@ -1,0 +1,68 @@
+/*
+ * ORBIT design tokens. See docs/DESIGN.md for the reasoning behind each choice.
+ */
+
+/* Bricolage Grotesque carries the naira sign; Instrument Sans does not.
+   This face supplies only U+20A6 so a naira sign inside body text stays in family. */
+@font-face {
+  font-family: 'ORBIT Naira';
+  src: url('../assets/fonts/orbit-naira.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+20A6;
+}
+
+:root {
+  /* Colour */
+  --ink: #161a52;
+  --ink-soft: #3a3f86;
+  --signal: #ffc400;
+  --signal-press: #e9b200;
+  --paper: #f4f5f9;
+  --surface: #ffffff;
+  --slate: #5a6180;
+  --slate-faint: #8a90ab;
+  --line: #dde0ec;
+  --good: #0e8a4f;
+  --bad: #c8312b;
+  --warn: #b25e00;
+  --ink-wash: #e9eaf6;
+  --good-wash: #e3f4eb;
+  --bad-wash: #fbe8e7;
+  --warn-wash: #fff1dc;
+
+  /* Type */
+  --font-display: 'Bricolage Grotesque Variable', 'ORBIT Naira', system-ui, sans-serif;
+  --font-body: 'Instrument Sans Variable', 'ORBIT Naira', system-ui, sans-serif;
+
+  /* Scale (rem so system text-size settings are respected) */
+  --t-xs: 0.75rem;
+  --t-sm: 0.875rem;
+  --t-md: 1rem;
+  --t-lg: 1.125rem;
+  --t-xl: 1.375rem;
+  --t-2xl: 1.75rem;
+  --t-3xl: 2.25rem;
+
+  /* Shape (different jobs, different radii) */
+  --r-button: 14px;
+  --r-input: 12px;
+  --r-sign: 10px;
+  --r-sheet: 24px;
+
+  /* Space */
+  --gutter: 20px;
+
+  --tap: 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
