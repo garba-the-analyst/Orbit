@@ -16,6 +16,7 @@ import { Product } from '../products/product.entity';
 import { RealtimeService } from '../realtime/realtime.service';
 import { DocumentsService, DocumentView } from '../uploads/documents.service';
 import { Shop } from '../shops/shop.entity';
+import { TripsAdminService } from '../trips/trips-admin.service';
 import { VehiclesService, VehicleView } from '../vehicles/vehicles.service';
 import { User } from '../users/user.entity';
 
@@ -48,6 +49,7 @@ export class AdminService {
     private readonly realtime: RealtimeService,
     private readonly vehicleService: VehiclesService,
     private readonly documents: DocumentsService,
+    private readonly tripsAdmin: TripsAdminService,
   ) {}
 
   /** Merchants and riders waiting for verification, oldest first. */
@@ -162,7 +164,7 @@ export class AdminService {
       delivered().andWhere('o.fulfilment = :f', { f: Fulfilment.ORBIT_COURIER }).getCount(),
       this.orders.createQueryBuilder('o').where('o.status = :s', { s: OrderStatus.CANCELLED }).andWhere('o.paidAt IS NOT NULL').andWhere('o.currency = :c', { c: currency }).getCount(),
       this.orders.createQueryBuilder('o').where('o.status IN (:...open)', { open }).andWhere('o.currency = :c', { c: currency }).getCount(),
-      this.ledger.createQueryBuilder('l').select('l.party', 'party').addSelect('l.kind', 'kind').addSelect('SUM(l.amount)', 'amount').where('l.currency = :c', { c: currency }).groupBy('l.party').addGroupBy('l.kind').getRawMany<{ party: string; kind: string; amount: string }>(),
+      this.ledger.createQueryBuilder('l').select('l.party', 'party').addSelect('l.kind', 'kind').addSelect('SUM(l.amount)', 'amount').where('l.currency = :c', { c: currency }).andWhere('l.source = :src', { src: 'ORDER' }).groupBy('l.party').addGroupBy('l.kind').getRawMany<{ party: string; kind: string; amount: string }>(),
       this.payments.createQueryBuilder('p').select('p.status', 'status').addSelect('COUNT(*)', 'n').where('p.currency = :c', { c: currency }).andWhere('p.status IN (:...s)', { s: [PaymentStatus.SUCCESS, PaymentStatus.REFUNDED] }).groupBy('p.status').getRawMany<{ status: string; n: string }>(),
       // Average over the latest 500 delivered orders that travelled: bounded work however large the history is.
       delivered().andWhere('o.fulfilment != :pk', { pk: Fulfilment.PICKUP }).andWhere('o.fulfilment != :cr', { cr: Fulfilment.CUSTOMER_RIDER }).andWhere('o.paidAt IS NOT NULL').andWhere('o.deliveredAt IS NOT NULL').orderBy('o.deliveredAt', 'DESC').select(['o.paidAt', 'o.deliveredAt']).take(500).getMany(),
@@ -182,7 +184,8 @@ export class AdminService {
       ? round1(recent.reduce((s, o) => s + (new Date(o.deliveredAt!).getTime() - new Date(o.paidAt!).getTime()), 0) / recent.length / 60_000)
       : null;
 
-    const [activeMerchants, listedProducts, activeRiders, onlineRiders, pendingMerchants, pendingRiders] = await Promise.all([
+    const [mobility, activeMerchants, listedProducts, activeRiders, onlineRiders, pendingMerchants, pendingRiders] = await Promise.all([
+      this.tripsAdmin.kpis(currency),
       this.shops.count({ where: { status: ShopStatus.APPROVED } }),
       this.products.count({ where: { available: true } }),
       this.users.count({ where: { role: Role.RIDER, status: AccountStatus.ACTIVE } }),
@@ -220,6 +223,7 @@ export class AdminService {
         owedToMerchants: ledgerSum(LedgerParty.MERCHANT),
         owedToRiders: ledgerSum(LedgerParty.COURIER),
       },
+      mobility,
       verificationQueue: { pendingMerchants, pendingRiders },
     };
   }

@@ -81,6 +81,34 @@ export enum LedgerKind {
   DELIVERY_PAYOUT = 'DELIVERY_PAYOUT',
   /** ORBIT's net contribution on a courier delivery (fee minus rider payout). */
   DELIVERY_CONTRIBUTION = 'DELIVERY_CONTRIBUTION',
+  /** A driver's share of a trip fare (the fare less ORBIT's commission). */
+  TRIP_EARNING = 'TRIP_EARNING',
+  /** ORBIT's commission on a trip, less any promotion ORBIT paid for. */
+  TRIP_COMMISSION = 'TRIP_COMMISSION',
+  /** A tip: passed to the driver in full. */
+  TRIP_TIP = 'TRIP_TIP',
+}
+
+/** What a trip carries: people (RIDE) or goods (PARCEL, from a small parcel to a lorry load). */
+export enum TripKind {
+  RIDE = 'RIDE',
+  PARCEL = 'PARCEL',
+}
+
+export enum TripStatus {
+  SEARCHING = 'SEARCHING',
+  ACCEPTED = 'ACCEPTED',
+  ARRIVED = 'ARRIVED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  NO_DRIVER = 'NO_DRIVER',
+}
+
+export enum PaymentMethod {
+  CASH = 'CASH',
+  /** Test-mode card payment. Becomes a real gateway charge when a payment provider is connected. */
+  CARD = 'CARD',
 }
 
 /**

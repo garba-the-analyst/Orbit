@@ -12,9 +12,17 @@ export class LedgerEntry {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  /** The id of the order or trip this line belongs to (see `source`). */
   @Index()
   @Column({ type: UUID_TYPE })
   orderId: string;
+
+  @Column({ type: 'varchar', length: 6, default: 'ORDER' })
+  source: 'ORDER' | 'TRIP';
+
+  /** The customer paid this in cash to the driver, so the driver already holds it (and owes ORBIT its commission). */
+  @Column({ type: 'boolean', default: false })
+  cashCollected: boolean;
 
   @Column({ type: 'varchar', length: 12 })
   party: LedgerParty;

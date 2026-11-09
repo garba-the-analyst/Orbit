@@ -4,6 +4,7 @@ import { LedgerEntry } from '../earnings/ledger-entry.entity';
 import { Order } from '../orders/order.entity';
 import { OrdersModule } from '../orders/orders.module';
 import { UploadsModule } from '../uploads/uploads.module';
+import { TripsModule } from '../trips/trips.module';
 import { VehiclesModule } from '../vehicles/vehicles.module';
 import { Payment } from '../payments/payment.entity';
 import { Product } from '../products/product.entity';
@@ -15,7 +16,7 @@ import { AdminsService } from './admins.service';
 import { AdminService } from './admin.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Shop, Product, Order, Payment, LedgerEntry]), OrdersModule, VehiclesModule, UploadsModule],
+  imports: [TypeOrmModule.forFeature([User, Shop, Product, Order, Payment, LedgerEntry]), OrdersModule, VehiclesModule, UploadsModule, TripsModule],
   controllers: [AdminController, AdminsController],
   providers: [AdminService, AdminsService],
 })

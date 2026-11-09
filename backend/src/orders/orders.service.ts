@@ -48,6 +48,7 @@ import { Payment } from '../payments/payment.entity';
 import { Product } from '../products/product.entity';
 import { RealtimeService } from '../realtime/realtime.service';
 import { ShopRider } from '../shop-riders/shop-rider.entity';
+import { Trip } from '../trips/trip.entities';
 import { VehiclesService } from '../vehicles/vehicles.service';
 import { Shop } from '../shops/shop.entity';
 import { User } from '../users/user.entity';
@@ -78,6 +79,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     @InjectRepository(Payment) private readonly payments: Repository<Payment>,
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(ShopRider) private readonly shopRiders: Repository<ShopRider>,
+    @InjectRepository(Trip) private readonly trips: Repository<Trip>,
     @InjectDataSource() private readonly db: DataSource,
     private readonly realtime: RealtimeService,
     private readonly notifications: NotificationsService,
@@ -530,6 +532,9 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       throw new ConflictException('Heavy-goods vehicles take logistics requests, not shop deliveries.');
     }
     if (!riderRow.online) throw new ConflictException('Go online to accept jobs.');
+    if (await this.trips.exists({ where: { driverId: rider.id, status: In(['ACCEPTED', 'ARRIVED', 'IN_PROGRESS']) } })) {
+      throw new ConflictException('Finish your current trip first.');
+    }
 
     const active = await this.orders.count({
       where: { courierId: rider.id, status: In([OrderStatus.CONFIRMED, OrderStatus.READY, OrderStatus.ON_THE_WAY]) },

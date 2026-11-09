@@ -24,3 +24,4 @@ process.env.JWT_SECRET = 'test-jwt-secret-test-jwt-secret-1234';
 process.env.PIN_SECRET = 'test-pin-secret-test-pin-secret-1234';
 process.env.WEBHOOK_SECRET = 'test-webhook-secret-test-webhook-1234';
 process.env.PAYMENT_PROVIDER = 'mock';
+process.env.TRIP_SWEEP_MS = '0'; // tests run the matching sweeper by hand

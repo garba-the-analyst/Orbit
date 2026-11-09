@@ -40,11 +40,13 @@ import { Document } from './uploads/document.entity';
 import { Upload } from './uploads/upload.entity';
 import { UploadsModule } from './uploads/uploads.module';
 import { User } from './users/user.entity';
+import { PromoCode, PromoRedemption, SosAlert, Trip, TripOffer } from './trips/trip.entities';
+import { TripsModule } from './trips/trips.module';
 import { Vehicle } from './vehicles/vehicle.entity';
 import { VehiclesModule } from './vehicles/vehicles.module';
 import { UsersModule } from './users/users.module';
 
-const entities = [User, Shop, Product, Order, OrderItem, Payment, LedgerEntry, Upload, Document, Notification, Favourite, ShopRider, Vehicle, SavedPlace];
+const entities = [User, Shop, Product, Order, OrderItem, Payment, LedgerEntry, Upload, Document, Notification, Favourite, ShopRider, Vehicle, SavedPlace, Trip, TripOffer, PromoCode, PromoRedemption, SosAlert];
 
 /**
  * Database connection. SQLite (zero setup) by default; PostgreSQL when DB_TYPE=postgres.
@@ -100,6 +102,7 @@ function databaseOptions() {
     FavouritesModule,
     ShopRidersModule,
     VehiclesModule,
+    TripsModule,
   ],
   controllers: [AppController],
   providers: [

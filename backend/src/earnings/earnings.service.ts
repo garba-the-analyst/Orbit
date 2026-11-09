@@ -10,6 +10,8 @@ import { LedgerParty, Role } from '../common/enums';
 import { MARKETS, marketOf } from '../common/markets';
 import { config } from '../config/config';
 import { Order } from '../orders/order.entity';
+import { Trip } from '../trips/trip.entities';
+import { User } from '../users/user.entity';
 import { LedgerEntry } from './ledger-entry.entity';
 
 export interface EarningsSummary {
@@ -17,9 +19,16 @@ export interface EarningsSummary {
   total: number;
   today: number;
   ordersSettled: number;
+  tripsSettled: number;
+  /** Drivers only. Card earnings ORBIT will pay out, cash the driver already holds, and commission owed on that cash. */
+  payableByOrbit?: number;
+  cashHeld?: number;
+  owedToOrbit?: number;
+  rating?: { average: number | null; count: number };
   /** Last 7 Lagos calendar days, oldest first. */
   last7Days: Array<{ date: string; amount: number }>;
-  recent: Array<{ orderId: string; waybillNo: string; amount: number; kind: string; at: string }>;
+  /** `orderId` is the order's or the trip's id; `waybillNo` is the order's waybill or the trip's code; `source` says which. */
+  recent: Array<{ orderId: string; waybillNo: string; amount: number; kind: string; source: string; cash: boolean; at: string }>;
 }
 
 /** The calendar day in a market's time zone. None of the supported markets use daylight saving, so a fixed offset is exact. */
@@ -30,6 +39,8 @@ export class EarningsService {
   constructor(
     @InjectRepository(LedgerEntry) private readonly ledger: Repository<LedgerEntry>,
     @InjectRepository(Order) private readonly orders: Repository<Order>,
+    @InjectRepository(Trip) private readonly trips: Repository<Trip>,
+    @InjectRepository(User) private readonly users: Repository<User>,
   ) {}
 
   async summary(user: AuthUser): Promise<EarningsSummary> {
@@ -57,22 +68,40 @@ export class EarningsService {
     }
 
     const recentEntries = entries.slice(0, 15);
-    const orderRows = recentEntries.length
-      ? await this.orders.find({ where: { id: In(recentEntries.map((e) => e.orderId)) }, select: { id: true, waybillNo: true } })
-      : [];
-    const waybill = new Map(orderRows.map((o) => [o.id, o.waybillNo]));
+    const idsOf = (source: 'ORDER' | 'TRIP') => recentEntries.filter((e) => e.source === source).map((e) => e.orderId);
+    const [orderRows, tripRows] = await Promise.all([
+      idsOf('ORDER').length ? this.orders.find({ where: { id: In(idsOf('ORDER')) }, select: { id: true, waybillNo: true } }) : [],
+      idsOf('TRIP').length ? this.trips.find({ where: { id: In(idsOf('TRIP')) }, select: { id: true, code: true } }) : [],
+    ]);
+    const waybill = new Map<string, string>([...orderRows.map((o) => [o.id, o.waybillNo] as const), ...tripRows.map((t) => [t.id, t.code] as const)]);
+
+    let driverExtras: Pick<EarningsSummary, 'payableByOrbit' | 'cashHeld' | 'owedToOrbit' | 'rating'> = {};
+    if (user.role === Role.RIDER) {
+      const owed = await this.ledger.find({ where: { userId: user.id, party: LedgerParty.PLATFORM, cashCollected: true }, select: { amount: true } });
+      const me = await this.users.findOne({ where: { id: user.id }, select: { ratingSum: true, ratingCount: true } });
+      driverExtras = {
+        payableByOrbit: entries.filter((e) => !e.cashCollected).reduce((s, e) => s + e.amount, 0),
+        cashHeld: entries.filter((e) => e.cashCollected).reduce((s, e) => s + e.amount, 0),
+        owedToOrbit: owed.reduce((s, e) => s + e.amount, 0),
+        rating: { average: me && me.ratingCount ? Math.round((me.ratingSum / me.ratingCount) * 10) / 10 : null, count: me?.ratingCount ?? 0 },
+      };
+    }
 
     return {
       currency,
       total,
       today,
-      ordersSettled: new Set(entries.map((e) => e.orderId)).size,
+      ordersSettled: new Set(entries.filter((e) => e.source !== 'TRIP').map((e) => e.orderId)).size,
+      tripsSettled: new Set(entries.filter((e) => e.source === 'TRIP').map((e) => e.orderId)).size,
+      ...driverExtras,
       last7Days: [...days.entries()].map(([date, amount]) => ({ date, amount })),
       recent: recentEntries.map((e) => ({
         orderId: e.orderId,
         waybillNo: waybill.get(e.orderId) ?? '',
         amount: e.amount,
         kind: e.kind,
+        source: e.source,
+        cash: e.cashCollected,
         at: new Date(e.createdAt).toISOString(),
       })),
     };

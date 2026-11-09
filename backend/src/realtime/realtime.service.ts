@@ -30,6 +30,20 @@ export class RealtimeService {
     }
   }
 
+  /** Tells the customer and driver of a trip that it changed. */
+  tripUpdated(trip: { id: string; status: string }, userIds: Array<string | null | undefined>) {
+    if (!this.server) return;
+    for (const id of new Set(userIds.filter((x): x is string => !!x))) {
+      this.server.to(userRoom(id)).emit('trip.updated', { tripId: trip.id, status: trip.status });
+    }
+  }
+
+  /** Tells specific drivers their offers changed (a new offer arrived, or one was taken or withdrawn). */
+  offersChanged(driverIds: string[]) {
+    if (!this.server) return;
+    for (const id of new Set(driverIds)) this.server.to(userRoom(id)).emit('offers.changed', { at: Date.now() });
+  }
+
   /** Tells all online riders the job board changed (a job appeared or was taken). */
   jobsChanged() {
     this.server?.to(riderRoom).emit('jobs.changed', { at: Date.now() });

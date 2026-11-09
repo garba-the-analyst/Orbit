@@ -168,6 +168,12 @@ export const config = {
     /** A driver whose last location is older than this is treated as offline for matching. */
     staleLocationSec: int('STALE_LOCATION_SEC', 90),
     maxSurge: num('MAX_SURGE', 2),
+    /** How often the matching sweeper looks for expired offers, in ms. 0 turns it off (tests drive it by hand). */
+    sweepMs: int('TRIP_SWEEP_MS', 3000),
+    /** Wrong start/drop PINs allowed before a trip locks. */
+    maxPinAttempts: int('TRIP_PIN_ATTEMPTS', 5),
+    /** Pickup radius within which a driver may mark "arrived", in metres. */
+    arriveRadiusM: int('ARRIVE_RADIUS_M', 500),
   },
 
   /** Requests per minute per client. Auth routes are stricter to slow password guessing. */

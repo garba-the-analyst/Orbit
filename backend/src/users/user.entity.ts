@@ -74,6 +74,13 @@ export class User {
   @Column({ type: DATETIME, nullable: true })
   locationAt: Date | null;
 
+  /** Running rating totals as a driver or as a passenger (average = sum / count). */
+  @Column({ type: 'int', default: 0 })
+  ratingSum: number;
+
+  @Column({ type: 'int', default: 0 })
+  ratingCount: number;
+
   /** Whether the rider is currently accepting jobs. */
   @Column({ type: 'boolean', default: false })
   online: boolean;
