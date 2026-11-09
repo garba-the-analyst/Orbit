@@ -26,6 +26,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { DataSource, EntityManager, In, IsNull, LessThan, Repository } from 'typeorm';
 import { AuthUser } from '../common/auth.decorators';
 import {
+  AccountStatus,
   Fulfilment,
   LedgerKind,
   LedgerParty,
@@ -34,16 +35,24 @@ import {
   Role,
   ShopStatus,
 } from '../common/enums';
-import { computeCharges } from '../common/money';
+import { dominantGoods, fleetOfOrNull } from '../common/catalog';
+import { marketOf } from '../common/markets';
+import { computeCharges, scaleAmount } from '../common/money';
 import { derivePin, pinMatches } from '../common/pin.util';
 import { config } from '../config/config';
 import { LedgerEntry } from '../earnings/ledger-entry.entity';
+import { GeoService } from '../geo/geo.service';
+import { LocationService, Position } from '../geo/location.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Payment } from '../payments/payment.entity';
 import { Product } from '../products/product.entity';
 import { RealtimeService } from '../realtime/realtime.service';
+import { ShopRider } from '../shop-riders/shop-rider.entity';
+import { VehiclesService } from '../vehicles/vehicles.service';
 import { Shop } from '../shops/shop.entity';
 import { User } from '../users/user.entity';
 import { CreateOrderDto, RateOrderDto } from './orders.dto';
+import { OrderEvent, orderAlerts } from './order.alerts';
 import { Order, OrderItem } from './order.entity';
 import { OrderView, toOrderView } from './order.view';
 
@@ -68,9 +77,67 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     @InjectRepository(Product) private readonly products: Repository<Product>,
     @InjectRepository(Payment) private readonly payments: Repository<Payment>,
     @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(ShopRider) private readonly shopRiders: Repository<ShopRider>,
     @InjectDataSource() private readonly db: DataSource,
     private readonly realtime: RealtimeService,
-  ) {}
+    private readonly notifications: NotificationsService,
+    private readonly geo: GeoService,
+    private readonly location: LocationService,
+    private readonly vehicles: VehiclesService,
+  ) {
+    // Drivers' positions flow to the customers whose orders they are carrying.
+    this.location.onUpdate((riderId, pos) => this.relayCourierPosition(riderId, pos));
+  }
+
+  /** Which orders each driver is on, cached briefly so a stream of position pings is not a stream of queries. */
+  private readonly activeCache = new Map<string, { until: number; targets: Array<{ orderId: string; customerId: string }> }>();
+
+  private async relayCourierPosition(riderId: string, pos: Position) {
+    let hit = this.activeCache.get(riderId);
+    if (!hit || hit.until < Date.now()) {
+      const rows = await this.orders.find({
+        where: { courierId: riderId, status: In([OrderStatus.CONFIRMED, OrderStatus.READY, OrderStatus.ON_THE_WAY]) },
+        select: { id: true, customerId: true },
+      });
+      hit = { until: Date.now() + 5000, targets: rows.map((r) => ({ orderId: r.id, customerId: r.customerId })) };
+      this.activeCache.set(riderId, hit);
+    }
+    for (const t of hit.targets) {
+      this.realtime.courierMoved(t.customerId, { orderId: t.orderId, lat: pos.lat, lng: pos.lng, heading: pos.heading ?? null });
+    }
+  }
+
+  /**
+   * Where the driver is and how far from where they are heading. Customers (and the shop and admins) see this for
+   * deliveries in progress. The route has no turn-by-turn steps: those are for the driver.
+   */
+  async tracking(viewer: AuthUser, orderId: string) {
+    const order = await this.load(orderId);
+    const allowed = viewer.role === Role.ADMIN || order.customerId === viewer.id || order.shop.ownerId === viewer.id;
+    if (!allowed) throw new NotFoundException('Order not found.');
+    const live = [OrderStatus.CONFIRMED, OrderStatus.READY, OrderStatus.ON_THE_WAY].includes(order.status);
+    const delivering = order.fulfilment === Fulfilment.ORBIT_COURIER || order.fulfilment === Fulfilment.MERCHANT_DELIVERY;
+    if (!live || !delivering || !order.courierId) return { active: false, phase: null, courier: null, vehicle: null, destination: null, route: null };
+
+    const [position, vehicle, rider] = await Promise.all([
+      this.location.currentOf(order.courierId),
+      this.vehicles.activeOf(order.courierId),
+      this.users.findOne({ where: { id: order.courierId }, select: { name: true, vehicle: true } }),
+    ]);
+    const toShop = order.status !== OrderStatus.ON_THE_WAY;
+    const destination = toShop
+      ? order.shop.lat !== null && order.shop.lng !== null ? { lat: order.shop.lat, lng: order.shop.lng } : null
+      : order.deliveryLat !== null && order.deliveryLng !== null ? { lat: order.deliveryLat, lng: order.deliveryLng } : null;
+    const route = position && destination ? await this.geo.route(position, destination, (rider?.vehicle ?? 'MOTORCYCLE') as never) : null;
+    return {
+      active: true,
+      phase: toShop ? 'to_shop' : 'to_you',
+      courier: position ? { ...position, name: rider?.name?.split(' ')[0] ?? 'Your rider' } : null,
+      vehicle: vehicle ? { type: vehicle.type, label: vehicle.label, plate: vehicle.plate, color: vehicle.color, model: vehicle.model } : null,
+      destination,
+      route: route ? { distanceM: route.distanceM, durationS: route.durationS, geometry: route.geometry, source: route.source } : null,
+    };
+  }
 
   onModuleInit() {
     if (config.isTest) return;
@@ -105,10 +172,12 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
    */
   async getFor(orderId: string, viewer: AuthUser): Promise<OrderView> {
     const order = await this.load(orderId);
+    // Access follows the relationship to the order, not the account type: a shop owner can open what they bought
+    // (as the customer) and what they sold (as the shop).
     const allowed =
       viewer.role === Role.ADMIN ||
-      (viewer.role === Role.CUSTOMER && order.customerId === viewer.id) ||
-      (viewer.role === Role.MERCHANT && order.shop.ownerId === viewer.id) ||
+      order.customerId === viewer.id ||
+      order.shop.ownerId === viewer.id ||
       (viewer.role === Role.RIDER &&
         (order.courierId === viewer.id ||
           (order.fulfilment === Fulfilment.ORBIT_COURIER &&
@@ -154,9 +223,10 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
   async create(customer: AuthUser, dto: CreateOrderDto): Promise<{ order: OrderView; payment: PaymentIntent }> {
     const shop = await this.shops.findOne({ where: { id: dto.shopId, status: ShopStatus.APPROVED } });
     if (!shop) throw new NotFoundException('Shop not found.');
+    if (shop.ownerId === customer.id) throw new BadRequestException('You cannot order from your own shop.');
     if (!shop.isOpen) throw new ConflictException(`${shop.name} is closed right now. Try again later.`);
     if (dto.fulfilment === Fulfilment.MERCHANT_DELIVERY && !shop.offersDelivery) {
-      throw new BadRequestException(`${shop.name} does not deliver. Choose pickup or an ORBIT courier.`);
+      throw new BadRequestException(`${shop.name} does not deliver. Choose pickup, your own rider or an ORBIT courier.`);
     }
 
     // Merge duplicate lines so one product cannot be split to dodge the quantity cap.
@@ -175,21 +245,35 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Some items are no longer available. Refresh the shop and try again.');
     }
 
+    // Services are booked with the shop: there is nothing to carry, so no courier and no collector.
+    const hasService = products.some((p) => p.kind === 'SERVICE');
+    if (hasService && dto.fulfilment !== Fulfilment.PICKUP && dto.fulfilment !== Fulfilment.MERCHANT_DELIVERY) {
+      throw new BadRequestException('Services are booked with the shop. Choose pickup (you go to them) or shop delivery (they come to you).');
+    }
+
     const subtotal = products.reduce((sum, p) => sum + p.price * wanted.get(p.id)!, 0);
+    // ORBIT's delivery tariff is defined in naira and scaled to the shop's market (unchanged for Nigeria).
+    const market = marketOf(shop.country);
     const charges = computeCharges({
       subtotal,
       fulfilment: dto.fulfilment,
       merchantDeliveryFee: shop.deliveryFee,
       commissionBps: config.business.commissionBps,
-      orbitDeliveryFee: config.business.orbitDeliveryFee,
-      courierPayout: config.business.courierPayout,
+      orbitDeliveryFee: scaleAmount(config.business.orbitDeliveryFee, market),
+      courierPayout: scaleAmount(config.business.courierPayout, market),
     });
+    const goods = products.filter((p) => p.kind !== 'SERVICE');
+    const goodsType = dominantGoods(goods.map((p) => p.goodsType));
+    const weight = goods.reduce((sum, p) => sum + (p.weightKg ?? 0) * wanted.get(p.id)!, 0);
+    const delivered = dto.fulfilment === Fulfilment.MERCHANT_DELIVERY || dto.fulfilment === Fulfilment.ORBIT_COURIER;
+    const pinned = delivered && dto.deliveryLat !== undefined && dto.deliveryLng !== undefined;
 
     const account = await this.users.findOneByOrFail({ id: customer.id });
 
     const { orderId, payment } = await this.db.transaction(async (m) => {
       // Reserve stock. The conditional UPDATE succeeds only while enough units remain.
       for (const p of products) {
+        if (p.kind === 'SERVICE') continue; // services have no stock
         const qty = wanted.get(p.id)!;
         const res = await m
           .createQueryBuilder()
@@ -216,16 +300,24 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
           commission: charges.commission,
           courierPayout: charges.courierPayout,
           platformDeliveryContribution: charges.platformDeliveryContribution,
-          deliveryAddress: dto.fulfilment === Fulfilment.PICKUP ? null : (dto.deliveryAddress ?? null),
-          deliveryNote: dto.fulfilment === Fulfilment.PICKUP ? null : (dto.deliveryNote ?? null),
+          currency: shop.currency,
+          goodsType,
+          weightKg: weight > 0 ? Math.round(weight * 100) / 100 : null,
+          hasService,
+          deliveryAddress: delivered ? (dto.deliveryAddress ?? null) : null,
+          deliveryNote: delivered ? (dto.deliveryNote ?? null) : null,
+          deliveryLat: pinned ? dto.deliveryLat! : null,
+          deliveryLng: pinned ? dto.deliveryLng! : null,
+          collectorName: dto.fulfilment === Fulfilment.CUSTOMER_RIDER ? (dto.collectorName ?? null) : null,
+          collectorPhone: dto.fulfilment === Fulfilment.CUSTOMER_RIDER ? (dto.collectorPhone ?? null) : null,
           contactPhone: dto.contactPhone ?? account.phone,
           items: products.map((p) =>
-            m.create(OrderItem, { productId: p.id, name: p.name, unitPrice: p.price, qty: wanted.get(p.id)! }),
+            m.create(OrderItem, { productId: p.id, name: p.name, unitPrice: p.price, qty: wanted.get(p.id)!, kind: p.kind }),
           ),
         }),
       );
 
-      const intent = await this.openPayment(m, order.id, order.total);
+      const intent = await this.openPayment(m, order.id, order.total, order.currency);
       return { orderId: order.id, payment: intent };
     });
 
@@ -242,16 +334,17 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     }
     return this.db.transaction(async (m) => {
       await m.update(Payment, { orderId, status: PaymentStatus.PENDING }, { status: PaymentStatus.FAILED });
-      return this.openPayment(m, orderId, order.total);
+      return this.openPayment(m, orderId, order.total, order.currency);
     });
   }
 
-  private async openPayment(m: EntityManager, orderId: string, amount: number): Promise<PaymentIntent> {
+  private async openPayment(m: EntityManager, orderId: string, amount: number, currency: string): Promise<PaymentIntent> {
     const payment = await m.save(
       m.create(Payment, {
         orderId,
         reference: `ORB_${randomBytes(9).toString('hex')}`,
         amount,
+        currency,
         provider: config.paymentProvider,
         status: PaymentStatus.PENDING,
       }),
@@ -264,7 +357,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
    * (gateways retry webhooks): only a PENDING payment is ever changed.
    */
   async applyPaymentResult(paymentId: string, success: boolean): Promise<void> {
-    const orderId = await this.db.transaction(async (m) => {
+    const result = await this.db.transaction(async (m): Promise<{ id: string; event?: OrderEvent } | null> => {
       const payment = await m.findOneByOrFail(Payment, { id: paymentId });
 
       // Duplicate callbacks change nothing. A FAILED payment is only reopened by a late *success*:
@@ -276,7 +369,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       const order = await m.findOneByOrFail(Order, { id: payment.orderId });
       if (!success) {
         await m.update(Payment, { id: payment.id }, { status: PaymentStatus.FAILED });
-        return order.id;
+        return { id: order.id };
       }
 
       if (order.status === OrderStatus.PENDING_PAYMENT) {
@@ -285,14 +378,19 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         await m.update(Order, { id: order.id }, { status: OrderStatus.PLACED, paidAt: now });
         // Close any other open attempts; if one of them also succeeds later it will be refunded.
         await m.update(Payment, { orderId: order.id, status: PaymentStatus.PENDING }, { status: PaymentStatus.FAILED });
+        return { id: order.id, event: 'placed' };
       } else {
         // Money arrived after the order was cancelled or expired: refund it rather than keep it.
         await m.update(Payment, { id: payment.id }, { status: PaymentStatus.REFUNDED, paidAt: new Date() });
+        return { id: order.id, event: 'refunded_late' };
       }
-      return order.id;
     });
 
-    if (orderId) this.notify(await this.load(orderId));
+    if (result) {
+      const order = await this.load(result.id);
+      this.notify(order);
+      if (result.event) this.alert(order, result.event);
+    }
   }
 
   // =====================================================================================================
@@ -351,6 +449,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       }
       const items = await m.find(OrderItem, { where: { orderId } });
       for (const item of items) {
+        if (item.kind === 'SERVICE') continue; // services never held stock
         await m
           .createQueryBuilder()
           .update(Product)
@@ -363,6 +462,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     });
     const order = await this.load(orderId);
     this.notify(order);
+    this.alert(order, 'cancelled');
     return order;
   }
 
@@ -383,7 +483,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       status: OrderStatus.CONFIRMED,
       confirmedAt: new Date(),
       prepMinutes: prepMinutes ?? order.shop.prepMinutes,
-    });
+    }, 'confirmed');
     return toOrderView(updated, { id: ownerId, role: Role.MERCHANT });
   }
 
@@ -393,20 +493,29 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     const updated = await this.transition(orderId, [OrderStatus.CONFIRMED], {
       status: OrderStatus.READY,
       readyAt: new Date(),
-    });
+    }, 'ready');
     return toOrderView(updated, { id: ownerId, role: Role.MERCHANT });
   }
 
-  /** Merchant hands a MERCHANT_DELIVERY order to their own staff. */
-  async startOwnDelivery(ownerId: string, orderId: string): Promise<OrderView> {
+  /**
+   * Merchant sends out a MERCHANT_DELIVERY order, either themselves or with one of their own riders. A shop rider
+   * must have accepted the shop's invitation; they see the address and can complete the delivery with the PIN.
+   */
+  async startOwnDelivery(ownerId: string, orderId: string, riderId?: string): Promise<OrderView> {
     const order = await this.ownedOrder(orderId, ownerId);
     if (order.fulfilment !== Fulfilment.MERCHANT_DELIVERY) {
       throw new BadRequestException('Only orders you deliver yourself can be sent out from here.');
     }
+    if (riderId) {
+      const link = await this.shopRiders.findOne({ where: { shopId: order.shopId, riderId, status: 'ACTIVE' } });
+      const rider = link ? await this.users.findOne({ where: { id: riderId, role: Role.RIDER, status: AccountStatus.ACTIVE } }) : null;
+      if (!rider) throw new BadRequestException('Choose one of your own riders who has accepted your invitation.');
+    }
     const updated = await this.transition(orderId, [OrderStatus.READY], {
       status: OrderStatus.ON_THE_WAY,
       pickedUpAt: new Date(),
-    });
+      courierId: riderId ?? null,
+    }, 'picked_up');
     return toOrderView(updated, { id: ownerId, role: Role.MERCHANT });
   }
 
@@ -417,6 +526,9 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
   /** A rider takes an unclaimed courier job. Atomic: only one rider can win. */
   async claim(rider: AuthUser, orderId: string): Promise<OrderView> {
     const riderRow = await this.users.findOneByOrFail({ id: rider.id });
+    if (fleetOfOrNull(riderRow.vehicle) === 'HEAVY') {
+      throw new ConflictException('Heavy-goods vehicles take logistics requests, not shop deliveries.');
+    }
     if (!riderRow.online) throw new ConflictException('Go online to accept jobs.');
 
     const active = await this.orders.count({
@@ -440,6 +552,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       throw new ConflictException('Another rider already took this job.');
     }
     this.notify(order);
+    this.alert(order, 'claimed');
     return toOrderView(order, { id: rider.id, role: Role.RIDER });
   }
 
@@ -464,6 +577,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     if (!res.affected) throw new ConflictException('This order is not ready for pickup yet.');
     const order = await this.load(orderId);
     this.notify(order);
+    this.alert(order, 'picked_up');
     return toOrderView(order, { id: rider.id, role: Role.RIDER });
   }
 
@@ -473,23 +587,29 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Completes an order by verifying the customer's 4-digit PIN.
-   *  - PICKUP:            the merchant enters it while the order is READY.
-   *  - MERCHANT_DELIVERY: the merchant enters it while the order is ON_THE_WAY.
+   *  - PICKUP / CUSTOMER_RIDER: the merchant enters it while the order is READY (the customer, or the rider
+   *                       they sent, shows it at the counter).
+   *  - MERCHANT_DELIVERY: the merchant, or the shop rider they assigned, enters it while ON_THE_WAY.
    *  - ORBIT_COURIER:     the assigned rider enters it while the order is ON_THE_WAY.
    * Five wrong attempts lock the order so the PIN cannot be brute-forced.
    */
   async complete(actor: AuthUser, orderId: string, pin: string): Promise<OrderView> {
     const order = await this.load(orderId);
 
-    const expectedStatus = order.fulfilment === Fulfilment.PICKUP ? OrderStatus.READY : OrderStatus.ON_THE_WAY;
+    const handover = order.fulfilment === Fulfilment.PICKUP || order.fulfilment === Fulfilment.CUSTOMER_RIDER;
+    const expectedStatus = handover ? OrderStatus.READY : OrderStatus.ON_THE_WAY;
     const isOwner = actor.role === Role.MERCHANT && order.shop.ownerId === actor.id;
     const isCourier = actor.role === Role.RIDER && order.courierId === actor.id;
     const authorised =
-      order.fulfilment === Fulfilment.ORBIT_COURIER ? isCourier : isOwner; // PICKUP and MERCHANT_DELIVERY: the shop
+      order.fulfilment === Fulfilment.ORBIT_COURIER
+        ? isCourier
+        : order.fulfilment === Fulfilment.MERCHANT_DELIVERY
+          ? isOwner || isCourier
+          : isOwner;
     if (!authorised) throw new NotFoundException('Order not found.');
     if (order.status !== expectedStatus) {
       throw new ConflictException(
-        order.fulfilment === Fulfilment.PICKUP
+        handover
           ? 'This order is not ready to hand over yet.'
           : 'This order is not out for delivery.',
       );
@@ -521,6 +641,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
 
     const done = await this.load(order.id);
     this.notify(done);
+    this.alert(done, 'delivered');
     return toOrderView(done, { id: actor.id, role: actor.role });
   }
 
@@ -543,7 +664,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       );
     }
     await m.save(
-      lines.filter((l) => l.amount > 0).map((l) => m.create(LedgerEntry, { orderId: order.id, ...l })),
+      lines.filter((l) => l.amount > 0).map((l) => m.create(LedgerEntry, { orderId: order.id, currency: order.currency, ...l })),
     );
   }
 
@@ -573,20 +694,48 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
   // =====================================================================================================
 
   /** Conditional state change. Fails with 409 if the order is not in one of the expected states. */
-  private async transition(orderId: string, from: OrderStatus[], patch: Partial<Order>): Promise<Order> {
+  private async transition(orderId: string, from: OrderStatus[], patch: Partial<Order>, event?: OrderEvent): Promise<Order> {
     const res = await this.orders.update({ id: orderId, status: In(from) }, patch as never);
     if (!res.affected) {
       throw new ConflictException('This order has already moved on. Refresh to see the latest status.');
     }
     const order = await this.load(orderId);
     this.notify(order);
+    if (event) this.alert(order, event);
     return order;
   }
 
   /** Pushes a tiny change signal to everyone involved (details are fetched over authenticated REST). */
   private notify(order: Order, extraUserId?: string) {
+    this.activeCache.clear(); // who is carrying what may have just changed
     this.realtime.orderUpdated(order, [order.customerId, order.shop.ownerId, order.courierId, extraUserId]);
     if (order.fulfilment === Fulfilment.ORBIT_COURIER) this.realtime.jobsChanged();
+  }
+
+  /** Tells the people involved, in words, what just happened. Fire and forget: it never blocks or breaks the order. */
+  private alert(order: Order, event: OrderEvent) {
+    void this.notifications.push(orderAlerts(order, event));
+  }
+
+  /** What a customer can put back in the basket from a past order, with today's prices and stock. */
+  async reorderLines(user: AuthUser, orderId: string) {
+    const order = await this.load(orderId);
+    if (order.customerId !== user.id) throw new NotFoundException('Order not found.');
+    const products = await this.products.find({
+      where: { id: In(order.items.map((i) => i.productId)), shopId: order.shopId },
+    });
+    const byId = new Map(products.map((p) => [p.id, p]));
+    return {
+      shopId: order.shopId,
+      shopName: order.shop.name,
+      shopOpen: order.shop.isOpen,
+      lines: order.items.map((i) => {
+        const p = byId.get(i.productId);
+        const available = !!p && p.available && (p.kind === 'SERVICE' || p.stock > 0);
+        const qty = p && p.kind !== 'SERVICE' ? Math.max(1, Math.min(i.qty, p.stock)) : i.qty;
+        return { productId: i.productId, name: i.name, qty, unitPrice: p?.price ?? i.unitPrice, available };
+      }),
+    };
   }
 
   private async newWaybill(m: EntityManager): Promise<string> {

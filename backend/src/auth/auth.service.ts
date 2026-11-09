@@ -8,12 +8,17 @@
  * - Five wrong passwords lock the account for 15 minutes.
  * - Merchants and riders are created as PENDING and must be approved by an admin before they can operate.
  */
-import { ConflictException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
+import { VEHICLE_SPECS } from '../common/catalog';
+import type { VehicleType } from '../common/enums';
+import { Vehicle } from '../vehicles/vehicle.entity';
+import { normalisePlate } from '../vehicles/vehicles.service';
 import { DataSource, Repository } from 'typeorm';
 import { AccountStatus, Role, ShopStatus } from '../common/enums';
+import { config } from '../config/config';
 import { RealtimeService } from '../realtime/realtime.service';
 import { Shop } from '../shops/shop.entity';
 import { User } from '../users/user.entity';
@@ -42,6 +47,10 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResult> {
+    // The superadmin address is reserved so nobody can register it before the startup bootstrap creates the account.
+    if (config.superAdmin.email && dto.email === config.superAdmin.email) {
+      throw new ConflictException('An account with this email already exists. Sign in instead.');
+    }
     const existing = await this.users.findOne({ where: { email: dto.email } });
     if (existing) throw new ConflictException('An account with this email already exists. Sign in instead.');
 
@@ -58,9 +67,21 @@ export class AuthService {
           role: dto.role,
           status: needsVerification ? AccountStatus.PENDING : AccountStatus.ACTIVE,
           vehicle: dto.role === Role.RIDER ? (dto.vehicle ?? null) : null,
+          fleet: dto.role === Role.RIDER && dto.vehicle ? VEHICLE_SPECS[dto.vehicle as VehicleType].fleet : null,
           online: false,
         }),
       );
+
+      // A driver's first vehicle is registered with the account and reviewed together with it.
+      if (dto.role === Role.RIDER && dto.vehicle) {
+        await manager.save(
+          manager.create(Vehicle, {
+            ownerId: created.id, type: dto.vehicle, fleet: VEHICLE_SPECS[dto.vehicle as VehicleType].fleet,
+            plate: normalisePlate(dto.plate ?? ''), model: dto.vehicleModel ?? '', color: dto.vehicleColor ?? '',
+            status: 'PENDING', isActive: true,
+          }),
+        );
+      }
 
       if (dto.role === Role.MERCHANT) {
         await manager.save(
@@ -116,8 +137,25 @@ export class AuthService {
     return this.issue(user);
   }
 
+  /** Change your own password. Signs out every other device and returns a fresh token for this one. */
+  async changePassword(userId: string, current: string, next: string): Promise<AuthResult> {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('This account is not available.');
+    if (!(await bcrypt.compare(current, user.passwordHash))) {
+      throw new BadRequestException('Your current password is not right.');
+    }
+    if (current === next) throw new BadRequestException('Choose a password you have not used just now.');
+    user.passwordHash = await bcrypt.hash(next, BCRYPT_COST);
+    user.mustChangePassword = false;
+    user.passwordChangedAt = new Date();
+    await this.users.save(user);
+    return this.issue(user);
+  }
+
   private async issue(user: User): Promise<AuthResult> {
-    const token = await this.jwt.signAsync({ sub: user.id, role: user.role });
+    // pv is the password version: it changes with every password change or reset, which ends older sessions
+    // exactly (a timestamp comparison in whole seconds would miss a token issued in the same second).
+    const token = await this.jwt.signAsync({ sub: user.id, role: user.role, pv: user.passwordChangedAt?.getTime() ?? 0 });
     return { token, user: await this.usersService.toPublic(user) };
   }
 }

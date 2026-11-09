@@ -20,6 +20,9 @@ export class Payment {
   @Column({ type: 'int' })
   amount: number;
 
+  @Column({ type: 'varchar', length: 3, default: 'NGN' })
+  currency: string;
+
   @Column({ type: 'varchar', length: 20, default: PaymentStatus.PENDING })
   status: PaymentStatus;
 

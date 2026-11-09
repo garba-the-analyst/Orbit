@@ -7,7 +7,9 @@
  * - Rider: nothing personal on the job board; name, phone and address only after accepting the job.
  * - Admin: full operational view, but never the PIN.
  */
+import { GOODS_SPECS } from '../common/catalog';
 import { Fulfilment, OrderStatus, Role } from '../common/enums';
+import type { GoodsType } from '../common/enums';
 import { derivePin } from '../common/pin.util';
 import { config } from '../config/config';
 import { Order } from './order.entity';
@@ -17,8 +19,16 @@ export interface OrderView {
   waybillNo: string;
   status: OrderStatus;
   fulfilment: Fulfilment;
-  shop: { id: string; name: string; color: string; address: string; category: string };
-  items: Array<{ productId: string; name: string; unitPrice: number; qty: number }>;
+  shop: { id: string; name: string; color: string; address: string; category: string; lat: number | null; lng: number | null; phone: string };
+  items: Array<{ productId: string; name: string; unitPrice: number; qty: number; kind: string }>;
+  currency: string;
+  /** What is being carried and how to handle it. */
+  goods: { type: string; label: string; handling: string; careful: boolean; urgent: boolean; weightKg: number | null };
+  hasService: boolean;
+  /** CUSTOMER_RIDER: who is collecting it. */
+  collector: { name: string; phone: string | null } | null;
+  /** Drop-off point on the map, shown only to people who may see the address. */
+  dropoff: { lat: number; lng: number } | null;
   itemCount: number;
   subtotal: number;
   deliveryFee: number;
@@ -60,19 +70,34 @@ export interface Viewer {
 const iso = (d: Date | null | undefined) => (d ? new Date(d).toISOString() : null);
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
-/** Role-specific money figures. Customers see only what they pay; ORBIT's cut is visible to ORBIT and the party it concerns. */
-function viewMoney(order: Order, role: Role): Record<string, number> {
-  switch (role) {
-    case Role.MERCHANT:
+/**
+ * How this viewer relates to the order. It is decided by the relationship, not the account type, so a shop owner
+ * looking at something they bought sees the customer view, and at something they sold sees the shop view.
+ * Anyone with no relationship (a rider browsing the job board) gets the redacted board view.
+ */
+type Lens = 'customer' | 'merchant' | 'courier' | 'board' | 'admin';
+function lensOf(order: Order, viewer: Viewer): Lens {
+  if (viewer.role === Role.ADMIN) return 'admin';
+  if (order.customerId === viewer.id) return 'customer';
+  if (order.shop?.ownerId === viewer.id) return 'merchant';
+  if (order.courierId === viewer.id) return 'courier';
+  return 'board';
+}
+
+/** Lens-specific money figures. Customers see only what they pay; ORBIT's cut is visible to ORBIT and the party it concerns. */
+function viewMoney(order: Order, lens: Lens): Record<string, number> {
+  switch (lens) {
+    case 'merchant':
       return {
         itemSales: order.subtotal,
         commission: order.commission,
         yourEarnings:
           order.subtotal - order.commission + (order.fulfilment === Fulfilment.MERCHANT_DELIVERY ? order.deliveryFee : 0),
       };
-    case Role.RIDER:
+    case 'courier':
+    case 'board':
       return { payout: order.courierPayout };
-    case Role.ADMIN:
+    case 'admin':
       return {
         commission: order.commission,
         courierPayout: order.courierPayout,
@@ -83,13 +108,18 @@ function viewMoney(order: Order, role: Role): Record<string, number> {
   }
 }
 
+function pickGoods(type: string) {
+  const spec = GOODS_SPECS[type as GoodsType] ?? GOODS_SPECS.GENERAL;
+  return { type: spec.type, label: spec.label, handling: spec.handling, careful: spec.careful, urgent: spec.urgent };
+}
+
 export function toOrderView(order: Order, viewer: Viewer): OrderView {
-  const isCustomer = viewer.role === Role.CUSTOMER;
-  const isMerchant = viewer.role === Role.MERCHANT;
-  const isAdmin = viewer.role === Role.ADMIN;
-  const isRider = viewer.role === Role.RIDER;
-  const isAssignedRider = isRider && order.courierId === viewer.id;
-  const redacted = isRider && !isAssignedRider;
+  const lens = lensOf(order, viewer);
+  const isCustomer = lens === 'customer';
+  const isMerchant = lens === 'merchant';
+  const isAdmin = lens === 'admin';
+  const isAssignedRider = lens === 'courier';
+  const redacted = lens === 'board';
 
   const inProgress = [OrderStatus.PLACED, OrderStatus.CONFIRMED, OrderStatus.READY, OrderStatus.ON_THE_WAY].includes(
     order.status,
@@ -125,13 +155,27 @@ export function toOrderView(order: Order, viewer: Viewer): OrderView {
       color: order.shop.color,
       address: order.shop.address,
       category: order.shop.category,
+      lat: order.shop.lat,
+      lng: order.shop.lng,
+      phone: order.shop.phone,
     },
-    items: order.items.map((i) => ({ productId: i.productId, name: i.name, unitPrice: i.unitPrice, qty: i.qty })),
+    items: order.items.map((i) => ({ productId: i.productId, name: i.name, unitPrice: i.unitPrice, qty: i.qty, kind: i.kind })),
+    currency: order.currency,
+    goods: {
+      ...pickGoods(order.goodsType),
+      weightKg: order.weightKg,
+    },
+    hasService: order.hasService,
+    collector:
+      order.collectorName && (isCustomer || isMerchant || isAdmin)
+        ? { name: order.collectorName, phone: order.collectorPhone }
+        : null,
+    dropoff: showAddress && order.deliveryLat !== null && order.deliveryLng !== null ? { lat: order.deliveryLat, lng: order.deliveryLng } : null,
     itemCount: order.items.reduce((n, i) => n + i.qty, 0),
     subtotal: order.subtotal,
     deliveryFee: order.deliveryFee,
     total: order.total,
-    money: viewMoney(order, viewer.role),
+    money: viewMoney(order, lens),
     deliveryAddress: showAddress ? order.deliveryAddress : null,
     deliveryNote: showAddress ? order.deliveryNote : null,
     customer,

@@ -27,6 +27,8 @@ export enum Fulfilment {
   PICKUP = 'PICKUP',
   MERCHANT_DELIVERY = 'MERCHANT_DELIVERY',
   ORBIT_COURIER = 'ORBIT_COURIER',
+  /** The customer sends their own rider to collect it from the shop; the shop checks the PIN at handover. */
+  CUSTOMER_RIDER = 'CUSTOMER_RIDER',
 }
 
 /**
@@ -81,5 +83,38 @@ export enum LedgerKind {
   DELIVERY_CONTRIBUTION = 'DELIVERY_CONTRIBUTION',
 }
 
-export type VehicleType = 'MOTORCYCLE' | 'BICYCLE' | 'KEKE';
-export const VEHICLES: VehicleType[] = ['MOTORCYCLE', 'BICYCLE', 'KEKE'];
+/**
+ * Every kind of vehicle on the platform.
+ *
+ * LIGHT fleet: bicycles, motorbikes, rickshaws (keke) and cars. They carry passengers and small parcels, and do
+ * marketplace deliveries. HEAVY fleet: pickups/vans, trucks, lorries and long-haul trailers. They move heavy or bulky
+ * goods and take only logistics requests.
+ */
+export type VehicleType = 'BICYCLE' | 'MOTORCYCLE' | 'KEKE' | 'CAR' | 'VAN' | 'TRUCK' | 'LORRY' | 'LONG_HAUL';
+export const VEHICLES: VehicleType[] = ['BICYCLE', 'MOTORCYCLE', 'KEKE', 'CAR', 'VAN', 'TRUCK', 'LORRY', 'LONG_HAUL'];
+
+export type Fleet = 'LIGHT' | 'HEAVY';
+export const FLEETS: Fleet[] = ['LIGHT', 'HEAVY'];
+
+/** What is being moved. Drives handling notes shown to drivers and who can carry it. */
+export type GoodsType =
+  | 'FOOD'
+  | 'PERISHABLE'
+  | 'FRAGILE'
+  | 'ELECTRONICS'
+  | 'DOCUMENTS'
+  | 'HOUSEHOLD'
+  | 'BUILDING'
+  | 'GENERAL';
+export const GOODS_TYPES: GoodsType[] = [
+  'FOOD',
+  'PERISHABLE',
+  'FRAGILE',
+  'ELECTRONICS',
+  'DOCUMENTS',
+  'HOUSEHOLD',
+  'BUILDING',
+  'GENERAL',
+];
+
+export type ProductKind = 'GOOD' | 'SERVICE';

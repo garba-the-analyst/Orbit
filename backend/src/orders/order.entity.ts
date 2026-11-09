@@ -74,6 +74,21 @@ export class Order {
   @Column({ type: 'varchar', length: 240, nullable: true }) deliveryNote: string | null;
   @Column({ type: 'varchar', length: 30 }) contactPhone: string;
 
+  /** Currency of every amount on this order (ISO 4217), taken from the shop's market. */
+  @Column({ type: 'varchar', length: 3, default: 'NGN' }) currency: string;
+  /** The most delicate kind of goods in the basket, so riders know how to handle it. */
+  @Column({ type: 'varchar', length: 12, default: 'GENERAL' }) goodsType: string;
+  /** Total weight of the goods where the shop gave weights, in kilograms. */
+  @Column({ type: 'float', nullable: true }) weightKg: number | null;
+  /** The basket includes a service booking (nothing to carry, so no ORBIT courier). */
+  @Column({ type: 'boolean', default: false }) hasService: boolean;
+  /** CUSTOMER_RIDER: the person the customer is sending to collect the order. */
+  @Column({ type: 'varchar', length: 80, nullable: true }) collectorName: string | null;
+  @Column({ type: 'varchar', length: 30, nullable: true }) collectorPhone: string | null;
+  /** The drop-off point on the map, when the customer pinned one. */
+  @Column({ type: 'float', nullable: true }) deliveryLat: number | null;
+  @Column({ type: 'float', nullable: true }) deliveryLng: number | null;
+
   /** Minutes the merchant said preparation will take (set when they confirm). */
   @Column({ type: 'int', nullable: true }) prepMinutes: number | null;
 
@@ -127,4 +142,8 @@ export class OrderItem {
 
   @Column({ type: 'int' })
   qty: number;
+
+  /** GOOD or SERVICE at the time of ordering. Services have no stock to release on cancellation. */
+  @Column({ type: 'varchar', length: 10, default: 'GOOD' })
+  kind: string;
 }

@@ -40,6 +40,19 @@ export class RealtimeService {
     this.server?.to('admins').emit('admin.changed', { at: Date.now() });
   }
 
+  /**
+   * A driver's position, sent only to the customer whose job they are on (never broadcast). This is the one place
+   * a socket carries data rather than a signal: a moving dot cannot wait for a REST round trip.
+   */
+  courierMoved(customerId: string, payload: { orderId?: string; tripId?: string; lat: number; lng: number; heading: number | null }) {
+    this.server?.to(userRoom(customerId)).emit('courier.moved', payload);
+  }
+
+  /** Tells one person's open app that a new notification exists; the app fetches it over REST. */
+  notificationAdded(userId: string, id: string) {
+    this.server?.to(userRoom(userId)).emit('notification.new', { id });
+  }
+
   /** Notifies one user (e.g. their account was approved). */
   userUpdated(userId: string) {
     this.server?.to(userRoom(userId)).emit('account.updated', { at: Date.now() });

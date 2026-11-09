@@ -7,6 +7,7 @@
  */
 import { existsSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
+import { DEFAULT_MARKET, MARKETS } from '../common/markets';
 
 // Node 22 can load a .env file natively; no dotenv dependency needed.
 if (existsSync('.env')) {
@@ -25,6 +26,14 @@ function int(name: string, fallback: number): number {
 }
 
 /** Reads a secret. In production it is mandatory and must be at least 32 characters. */
+function num(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) throw new Error(`Environment variable ${name} must be a number (got "${raw}")`);
+  return n;
+}
+
 function secret(name: string, isProduction: boolean): string {
   const value = process.env[name];
   if (value && value.length >= 32) return value;
@@ -33,6 +42,14 @@ function secret(name: string, isProduction: boolean): string {
   }
   // Development/test: a stable per-process random secret (tokens reset on restart, which is fine).
   return value && value.length > 0 ? value : randomBytes(32).toString('hex');
+}
+
+const enabledMarkets = (process.env.ENABLED_MARKETS ?? DEFAULT_MARKET)
+  .split(',')
+  .map((c) => c.trim().toUpperCase())
+  .filter(Boolean);
+for (const code of enabledMarkets) {
+  if (!MARKETS[code]) throw new Error(`ENABLED_MARKETS lists "${code}", which is not a known market (${Object.keys(MARKETS).join(', ')}).`);
 }
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
@@ -77,10 +94,81 @@ export const config = {
     pendingPaymentTtlMin: int('PENDING_PAYMENT_TTL_MIN', 15),
     maxLinesPerOrder: 30,
     maxQtyPerLine: 20,
-    pilotZone: process.env.PILOT_ZONE ?? 'Campus pilot zone',
   },
 
   paymentProvider,
+
+  /** The countries this deployment serves. Nigeria by default; see common/markets.ts to add more. */
+  markets: { enabled: enabledMarkets },
+
+  /**
+   * The superadmin is created from these settings at startup, never from source code. The password is only used
+   * when the account does not exist yet; changing it later is done from inside the app.
+   */
+  superAdmin: {
+    email: (process.env.SUPERADMIN_EMAIL ?? '').trim().toLowerCase(),
+    password: process.env.SUPERADMIN_PASSWORD ?? '',
+    name: process.env.SUPERADMIN_NAME ?? 'Super Admin',
+  },
+  /** How many other admins the superadmin may create. */
+  maxAdmins: int('MAX_ADMINS', 6),
+
+  uploads: {
+    dir: process.env.UPLOAD_DIR ?? './data/uploads',
+    maxBytes: int('UPLOAD_MAX_BYTES', 6 * 1024 * 1024),
+    /** If set (for example https://api.example.com), image URLs are absolute; otherwise they are relative. */
+    publicBase: (process.env.PUBLIC_BASE_URL ?? '').replace(/\/$/, ''),
+    /** Where private documents (ID, licences, vehicle papers) live when STORAGE_DRIVER=local. Never served publicly. */
+    privateDir: process.env.UPLOAD_PRIVATE_DIR ?? './data/private',
+    maxDocBytes: int('UPLOAD_MAX_DOC_BYTES', 5 * 1024 * 1024),
+  },
+
+  /**
+   * Where files are kept. "local" writes to disk (fine for one server with a persistent disk). "s3" uses any
+   * S3-compatible bucket (Cloudflare R2, Amazon S3, Supabase Storage, MinIO) and is what a hosted deployment needs,
+   * because most hosts wipe the local disk on every deploy. Two buckets keep private documents out of public reach:
+   * the public one serves pictures, the private one is only ever read by the API.
+   */
+  storage: {
+    driver: (process.env.STORAGE_DRIVER ?? 'local') as 'local' | 's3',
+    s3: {
+      endpoint: process.env.S3_ENDPOINT ?? '',
+      region: process.env.S3_REGION ?? 'auto',
+      accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
+      publicBucket: process.env.S3_PUBLIC_BUCKET ?? '',
+      privateBucket: process.env.S3_PRIVATE_BUCKET ?? '',
+      /** The public URL of the public bucket, for example https://pub-xxxx.r2.dev or a custom domain. */
+      publicBase: (process.env.S3_PUBLIC_BASE ?? '').replace(/\/$/, ''),
+    },
+  },
+
+  /** Open-source maps: OpenStreetMap tiles, OSRM routing, Nominatim place search. All replaceable by URL. */
+  geo: {
+    provider: (process.env.GEO_PROVIDER ?? 'osm') as 'osm' | 'offline',
+    osrmUrl: (process.env.OSRM_URL ?? 'https://router.project-osrm.org').replace(/\/$/, ''),
+    nominatimUrl: (process.env.NOMINATIM_URL ?? 'https://nominatim.openstreetmap.org').replace(/\/$/, ''),
+    tileUrl: process.env.TILE_URL ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    /** The public OSM services require an identifying User-Agent. Set GEO_CONTACT to your email or website. */
+    userAgent: `ORBIT/2.0 (${process.env.GEO_CONTACT ?? 'set GEO_CONTACT'})`,
+    /** Optional override of where the map opens when the person's location is unknown. Otherwise the first market's centre. */
+    center: process.env.MAP_CENTER_LAT && process.env.MAP_CENTER_LNG ? { lat: num('MAP_CENTER_LAT', 0), lng: num('MAP_CENTER_LNG', 0) } : null,
+    countryCodes: (process.env.GEO_COUNTRY_CODES ?? enabledMarkets.join(',')).toLowerCase(),
+    timeoutMs: int('GEO_TIMEOUT_MS', 4000),
+  },
+
+  trips: {
+    commissionBps: int('TRIP_COMMISSION_BPS', 1000),
+    offerTtlSec: int('OFFER_TTL_SEC', 20),
+    waveSize: int('OFFER_WAVE_SIZE', 3),
+    maxWaves: int('OFFER_MAX_WAVES', 3),
+    /** Cancelling after a driver has been on the way for longer than this costs the cancellation fee. */
+    freeCancelSec: int('FREE_CANCEL_SEC', 120),
+    cancelFee: int('CANCEL_FEE', 200),
+    /** A driver whose last location is older than this is treated as offline for matching. */
+    staleLocationSec: int('STALE_LOCATION_SEC', 90),
+    maxSurge: num('MAX_SURGE', 2),
+  },
 
   /** Requests per minute per client. Auth routes are stricter to slow password guessing. */
   rateLimit: {

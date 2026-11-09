@@ -3,16 +3,20 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { LedgerEntry } from '../earnings/ledger-entry.entity';
 import { Order } from '../orders/order.entity';
 import { OrdersModule } from '../orders/orders.module';
+import { UploadsModule } from '../uploads/uploads.module';
+import { VehiclesModule } from '../vehicles/vehicles.module';
 import { Payment } from '../payments/payment.entity';
 import { Product } from '../products/product.entity';
 import { Shop } from '../shops/shop.entity';
 import { User } from '../users/user.entity';
 import { AdminController } from './admin.controller';
+import { AdminsController } from './admins.controller';
+import { AdminsService } from './admins.service';
 import { AdminService } from './admin.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Shop, Product, Order, Payment, LedgerEntry]), OrdersModule],
-  controllers: [AdminController],
-  providers: [AdminService],
+  imports: [TypeOrmModule.forFeature([User, Shop, Product, Order, Payment, LedgerEntry]), OrdersModule, VehiclesModule, UploadsModule],
+  controllers: [AdminController, AdminsController],
+  providers: [AdminService, AdminsService],
 })
 export class AdminModule {}

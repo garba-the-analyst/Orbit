@@ -27,9 +27,13 @@ export class LedgerEntry {
   @Column({ type: 'varchar', length: 30 })
   kind: LedgerKind;
 
-  /** Whole naira, always positive. */
+  /** Whole units of the order's currency, always positive. */
   @Column({ type: 'int' })
   amount: number;
+
+  @Index()
+  @Column({ type: 'varchar', length: 3, default: 'NGN' })
+  currency: string;
 
   @CreateDateColumn()
   createdAt: Date;

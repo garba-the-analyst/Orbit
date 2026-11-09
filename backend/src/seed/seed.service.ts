@@ -9,6 +9,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
 import { AccountStatus, Role, ShopStatus } from '../common/enums';
+import { VEHICLE_SPECS } from '../common/catalog';
+import type { VehicleType } from '../common/enums';
+import { Vehicle } from '../vehicles/vehicle.entity';
 import { Product } from '../products/product.entity';
 import { Shop } from '../shops/shop.entity';
 import { User } from '../users/user.entity';
@@ -138,15 +141,18 @@ export class SeedService {
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(Shop) private readonly shops: Repository<Shop>,
     @InjectRepository(Product) private readonly products: Repository<Product>,
+    @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
   ) {}
 
   /** Seeds only an empty database. Returns true if data was written. */
   async run(): Promise<boolean> {
-    if ((await this.users.count()) > 0) return false;
+    // The superadmin is created on every boot, so it does not count: demo data loads only into a database that
+    // has no other accounts at all.
+    if ((await this.users.count({ where: { isSuperAdmin: false } })) > 0) return false;
     const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
     const base = { passwordHash: hash, status: AccountStatus.ACTIVE, vehicle: null as string | null, online: false };
-    await this.users.save([
+    const people = await this.users.save([
       this.users.create({ ...base, name: 'ORBIT Admin', email: 'admin@orbit.demo', phone: '08031239999', role: Role.ADMIN }),
       this.users.create({ ...base, name: 'Zainab Musa', email: 'student@orbit.demo', phone: '08031230100', role: Role.CUSTOMER }),
       this.users.create({ ...base, name: 'Tunde Adeyemi', email: 'student2@orbit.demo', phone: '08031230101', role: Role.CUSTOMER }),
@@ -155,6 +161,17 @@ export class SeedService {
       // A rider waiting for verification, so the admin approval flow can be demonstrated.
       this.users.create({ ...base, name: 'Sani Lawal', email: 'rider3@orbit.demo', phone: '08031230203', role: Role.RIDER, vehicle: 'BICYCLE', status: AccountStatus.PENDING }),
     ]);
+
+    // Each demo driver has a registered vehicle: approved for the verified ones, waiting for the pending one.
+    const plates: Record<string, string> = { 'rider1@orbit.demo': 'KJA123AA', 'rider2@orbit.demo': 'LSR456BB', 'rider3@orbit.demo': '' };
+    for (const u of people.filter((p) => p.role === Role.RIDER)) {
+      const type = u.vehicle!;
+      await this.users.update({ id: u.id }, { fleet: VEHICLE_SPECS[type as VehicleType].fleet });
+      await this.vehicles.save(this.vehicles.create({
+        ownerId: u.id, type, fleet: VEHICLE_SPECS[type as VehicleType].fleet, plate: plates[u.email] ?? '',
+        make: '', model: '', color: '', status: u.status === AccountStatus.ACTIVE ? 'APPROVED' : 'PENDING', isActive: true,
+      }));
+    }
 
     for (const entry of SHOPS) {
       const owner = await this.users.save(

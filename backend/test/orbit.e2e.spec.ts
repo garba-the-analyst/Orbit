@@ -75,7 +75,10 @@ describe('authentication and authorisation', () => {
     await api().get('/api/health').expect(200).expect((r) => expect(r.body.db).toBe('up'));
     const cfg = (await api().get('/api/config').expect(200)).body;
     expect(cfg.commissionPct).toBe(8);
-    expect(cfg.orbitDeliveryFee).toBe(700);
+    expect(cfg.markets[0].orbitDeliveryFee).toBe(700);
+    expect(cfg.markets[0]).toMatchObject({ code: 'NG', currency: 'NGN', dialCode: '+234' });
+    expect(cfg.serviceArea).toBe('Nigeria');
+    expect(cfg.vehicles.map((v: { type: string }) => v.type)).toEqual(expect.arrayContaining(['MOTORCYCLE', 'CAR', 'TRUCK', 'LONG_HAUL']));
   });
 
   it('rejects requests without a valid token', async () => {
@@ -87,7 +90,7 @@ describe('authentication and authorisation', () => {
     const body = { name: 'Ada Eze', email: 'ada@example.com', phone: '0803 123 4567', password: 'Strong123', role: 'CUSTOMER' };
     const ok = await api().post('/api/auth/register').send(body).expect(201);
     expect(ok.body.user.role).toBe('CUSTOMER');
-    expect(ok.body.user.phone).toBe('08031234567'); // spaces stripped
+    expect(ok.body.user.phone).toBe('+2348031234567'); // spaces stripped, stored in international format
     expect(ok.body.user.passwordHash).toBeUndefined();
 
     await api().post('/api/auth/register').send(body).expect(409);

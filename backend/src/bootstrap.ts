@@ -3,12 +3,26 @@
  * tests exercise exactly the same security headers, validation and CORS rules as production.
  */
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { resolve } from 'node:path';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { config } from './config/config';
 
 export function configureApp(app: INestApplication, opts: { docs?: boolean } = {}) {
   app.setGlobalPrefix('api');
+
+  // Uploaded pictures. Names are random and never change, so browsers may cache them for a long time.
+  (app as NestExpressApplication).useStaticAssets(resolve(config.uploads.dir), {
+    prefix: '/uploads/',
+    maxAge: '365d',
+    immutable: true,
+    index: false,
+    dotfiles: 'deny',
+    setHeaders: (res: { setHeader: (k: string, v: string) => void }) => {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'); // the app is served from another origin
+    },
+  });
 
   // Secure HTTP headers (no sniffing, frame denial, HSTS over HTTPS, etc.).
   app.use(helmet({ contentSecurityPolicy: false /* API only; Swagger UI needs inline scripts */ }));

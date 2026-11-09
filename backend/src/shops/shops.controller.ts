@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthUser, CurrentUser, Roles } from '../common/auth.decorators';
 import { Role } from '../common/enums';
-import { UpdateShopDto } from './shops.dto';
+import { ListShopsQuery, UpdateShopDto } from './shops.dto';
 import { ShopsService, toShopView } from './shops.service';
 
 @ApiTags('shops')
@@ -11,12 +12,21 @@ import { ShopsService, toShopView } from './shops.service';
 export class ShopsController {
   constructor(private readonly shops: ShopsService) {}
 
-  @ApiOperation({ summary: 'Browse approved shops; search by shop, category or product name' })
-  @ApiQuery({ name: 'q', required: false })
-  @ApiQuery({ name: 'category', required: false })
+  @ApiOperation({
+    summary: 'Browse approved shops. Search by shop, category or product; filter by city or distance. Total count is in X-Total-Count.',
+  })
   @Get('shops')
-  list(@Query('q') q?: string, @Query('category') category?: string) {
-    return this.shops.listPublic({ q, category });
+  async list(@Query() query: ListShopsQuery, @Res({ passthrough: true }) res: Response) {
+    const { items, total } = await this.shops.listPublic(query);
+    res.setHeader('X-Total-Count', String(total));
+    res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
+    return items;
+  }
+
+  @ApiOperation({ summary: 'Cities that have shops, with counts' })
+  @Get('shops/cities')
+  cities() {
+    return this.shops.cities();
   }
 
   @ApiOperation({ summary: 'A shop and its available products' })

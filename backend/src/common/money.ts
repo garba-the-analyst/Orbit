@@ -53,3 +53,13 @@ export function computeCharges(i: ChargeInputs): Charges {
     platformDeliveryContribution,
   };
 }
+
+/**
+ * Converts an amount defined in the base (naira) tariff into a market's currency, rounded to a sensible unit.
+ * Nigeria is the base, so its amounts are returned unchanged.
+ */
+export function scaleAmount(baseAmount: number, market: { tariffScale: number; fareRounding: number }): number {
+  if (market.tariffScale === 1) return baseAmount;
+  const rounding = Math.max(1, market.fareRounding);
+  return Math.max(rounding, Math.ceil((baseAmount * market.tariffScale) / rounding) * rounding);
+}

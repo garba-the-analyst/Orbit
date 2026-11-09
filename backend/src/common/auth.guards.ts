@@ -18,7 +18,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/user.entity';
 import { AccountStatus, Role } from './enums';
-import { AuthUser, IS_PUBLIC_KEY, ROLES_KEY } from './auth.decorators';
+import { ALLOW_PASSWORD_CHANGE_KEY, AuthUser, IS_PUBLIC_KEY, ROLES_KEY, SUPER_ADMIN_KEY } from './auth.decorators';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -40,7 +40,7 @@ export class JwtAuthGuard implements CanActivate {
     const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
     if (!token) throw new UnauthorizedException('Sign in to continue.');
 
-    let payload: { sub: string };
+    let payload: { sub: string; pv?: number };
     try {
       payload = await this.jwt.verifyAsync(token);
     } catch {
@@ -52,7 +52,34 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('This account is not available.');
     }
 
-    const principal: AuthUser = { id: user.id, role: user.role, status: user.status, name: user.name };
+    // A password change signs out every other device: older tokens stop working.
+    if ((payload.pv ?? 0) !== (user.passwordChangedAt?.getTime() ?? 0)) {
+      throw new UnauthorizedException('Your password was changed. Sign in again.');
+    }
+
+    // Someone given a temporary password may only change it; nothing else works until they do.
+    if (user.mustChangePassword) {
+      const allowed = this.reflector.getAllAndOverride<boolean>(ALLOW_PASSWORD_CHANGE_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
+      if (!allowed) {
+        throw new ForbiddenException({
+          statusCode: 403,
+          code: 'PASSWORD_CHANGE_REQUIRED',
+          message: 'Choose a new password to continue.',
+        });
+      }
+    }
+
+    const principal: AuthUser = {
+      id: user.id,
+      role: user.role,
+      status: user.status,
+      name: user.name,
+      isSuperAdmin: user.isSuperAdmin,
+      mustChangePassword: user.mustChangePassword,
+    };
     request.user = principal;
     return true;
   }
@@ -67,9 +94,17 @@ export class RolesGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (!roles || roles.length === 0) return true;
+    const superOnly = this.reflector.getAllAndOverride<boolean>(SUPER_ADMIN_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if ((!roles || roles.length === 0) && !superOnly) return true;
 
     const user: AuthUser | undefined = context.switchToHttp().getRequest().user;
+    if (superOnly && !user?.isSuperAdmin) {
+      throw new ForbiddenException('Only the superadmin can do this.');
+    }
+    if (!roles || roles.length === 0) return true;
     if (!user || !roles.includes(user.role)) {
       throw new ForbiddenException('You do not have access to this action.');
     }

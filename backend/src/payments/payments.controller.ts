@@ -25,7 +25,8 @@ export class PaymentsController {
   }
 
   @ApiBearerAuth()
-  @Roles(Role.CUSTOMER)
+  // Shop owners and drivers can buy too; the service checks that the payer owns the order.
+  @Roles(Role.CUSTOMER, Role.MERCHANT, Role.RIDER)
   @HttpCode(200)
   @ApiOperation({ summary: 'TEST MODE ONLY: complete or fail a payment as the gateway would' })
   @Post(':reference/simulate')

@@ -19,6 +19,12 @@ import { DispatchModule } from './dispatch/dispatch.module';
 import { EarningsModule } from './earnings/earnings.module';
 import { LedgerEntry } from './earnings/ledger-entry.entity';
 import { AppController } from './health/app.controller';
+import { Favourite } from './favourites/favourite.entity';
+import { GeoModule } from './geo/geo.module';
+import { SavedPlace } from './geo/place.entity';
+import { FavouritesModule } from './favourites/favourites.module';
+import { Notification } from './notifications/notification.entity';
+import { NotificationsModule } from './notifications/notifications.module';
 import { Order, OrderItem } from './orders/order.entity';
 import { OrdersModule } from './orders/orders.module';
 import { Payment } from './payments/payment.entity';
@@ -26,12 +32,19 @@ import { PaymentsModule } from './payments/payments.module';
 import { Product } from './products/product.entity';
 import { RealtimeModule } from './realtime/realtime.module';
 import { SeedService } from './seed/seed.service';
+import { ShopRider } from './shop-riders/shop-rider.entity';
+import { ShopRidersModule } from './shop-riders/shop-riders.module';
 import { Shop } from './shops/shop.entity';
 import { ShopsModule } from './shops/shops.module';
+import { Document } from './uploads/document.entity';
+import { Upload } from './uploads/upload.entity';
+import { UploadsModule } from './uploads/uploads.module';
 import { User } from './users/user.entity';
+import { Vehicle } from './vehicles/vehicle.entity';
+import { VehiclesModule } from './vehicles/vehicles.module';
 import { UsersModule } from './users/users.module';
 
-const entities = [User, Shop, Product, Order, OrderItem, Payment, LedgerEntry];
+const entities = [User, Shop, Product, Order, OrderItem, Payment, LedgerEntry, Upload, Document, Notification, Favourite, ShopRider, Vehicle, SavedPlace];
 
 /**
  * Database connection. SQLite (zero setup) by default; PostgreSQL when DB_TYPE=postgres.
@@ -45,6 +58,7 @@ function databaseOptions() {
       url: config.db.url,
       entities,
       synchronize: process.env.DB_SYNC !== 'false',
+      dropSchema: process.env.DB_DROP_SCHEMA === 'true', // tests only: start every test file from an empty database
       logging: process.env.DB_LOG === 'true' ? (['error'] as ['error']) : false,
     };
   }
@@ -64,7 +78,7 @@ function databaseOptions() {
 @Module({
   imports: [
     TypeOrmModule.forRoot(databaseOptions()),
-    TypeOrmModule.forFeature([User, Shop, Product]),
+    TypeOrmModule.forFeature([User, Shop, Product, Vehicle]),
     JwtModule.register({
       global: true,
       secret: config.jwt.secret,
@@ -72,6 +86,8 @@ function databaseOptions() {
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: config.rateLimit.global }]),
     RealtimeModule,
+    NotificationsModule,
+    GeoModule,
     UsersModule,
     AuthModule,
     ShopsModule,
@@ -80,6 +96,10 @@ function databaseOptions() {
     DispatchModule,
     EarningsModule,
     AdminModule,
+    UploadsModule,
+    FavouritesModule,
+    ShopRidersModule,
+    VehiclesModule,
   ],
   controllers: [AppController],
   providers: [

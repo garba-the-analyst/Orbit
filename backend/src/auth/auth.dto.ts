@@ -12,6 +12,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Role, VEHICLES } from '../common/enums';
+import { IsAppPhone, toE164 } from '../common/phone';
 
 /** Nigerian mobile numbers: 0803..., 0703..., +234803... (spaces and dashes are stripped first). */
 export const NG_PHONE = /^(\+234|0)[789][01]\d{8}$/;
@@ -35,8 +36,8 @@ export class RegisterDto {
   email: string;
 
   @ApiProperty({ example: '08031234567' })
-  @Transform(stripPhone)
-  @Matches(NG_PHONE, { message: 'Enter a valid Nigerian phone number, like 08031234567.' })
+  @Transform(toE164)
+  @IsAppPhone()
   phone: string;
 
   @ApiProperty({ minLength: 8, description: 'At least 8 characters with a letter and a number.' })
@@ -75,6 +76,19 @@ export class RegisterDto {
   @ValidateIf((o: RegisterDto) => o.role === Role.RIDER)
   @IsIn(VEHICLES)
   vehicle?: string;
+
+  @ApiPropertyOptional({ description: 'Registration plate (not needed for bicycles). Can be added later.' })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(16)
+  plate?: string;
+
+  @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(60)
+  vehicleModel?: string;
+
+  @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(30)
+  vehicleColor?: string;
 }
 
 export class LoginDto {
@@ -99,7 +113,27 @@ export class UpdateProfileDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(stripPhone)
-  @Matches(NG_PHONE, { message: 'Enter a valid Nigerian phone number, like 08031234567.' })
+  @Transform(toE164)
+  @IsAppPhone()
   phone?: string;
+
+  @ApiPropertyOptional({ nullable: true, description: 'URL returned by POST /uploads?kind=avatar. Send null to remove it.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  avatarUrl?: string | null;
+}
+
+export class ChangePasswordDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(72)
+  currentPassword: string;
+
+  @ApiProperty({ minLength: 8, description: 'At least 8 characters with a letter and a number.' })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72)
+  @Matches(/(?=.*[A-Za-z])(?=.*\d)/, { message: 'Password needs at least one letter and one number.' })
+  newPassword: string;
 }

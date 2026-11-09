@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthUser, CurrentUser, Roles } from '../common/auth.decorators';
 import { Role } from '../common/enums';
@@ -49,7 +49,8 @@ export class AdminController {
 
   @ApiOperation({ summary: 'Marketplace, logistics and financial KPIs (proposal section 12)' })
   @Get('kpis')
-  kpis() {
-    return this.admin.kpis();
+  kpis(@Query('currency') currency?: string) {
+    if (currency !== undefined && !/^[A-Z]{3}$/.test(currency)) throw new BadRequestException('currency must be a 3-letter code like NGN.');
+    return this.admin.kpis(currency);
   }
 }

@@ -40,9 +40,11 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
     try {
       const token = (client.handshake.auth as { token?: string })?.token;
       if (!token) throw new Error('missing token');
-      const payload = await this.jwt.verifyAsync<{ sub: string }>(token);
+      const payload = await this.jwt.verifyAsync<{ sub: string; pv?: number }>(token);
       const user = await this.users.findOne({ where: { id: payload.sub } });
       if (!user || user.status === AccountStatus.SUSPENDED) throw new Error('inactive');
+      // A password change ends every older session, sockets included.
+      if ((payload.pv ?? 0) !== (user.passwordChangedAt?.getTime() ?? 0)) throw new Error('stale session');
 
       await client.join(userRoom(user.id));
       if (user.role === Role.RIDER && user.status === AccountStatus.ACTIVE) await client.join(riderRoom);

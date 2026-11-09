@@ -1,10 +1,10 @@
 import { Body, Controller, Get, HttpCode, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { AuthUser, CurrentUser, Public } from '../common/auth.decorators';
+import { AllowWhilePasswordChange, AuthUser, CurrentUser, Public } from '../common/auth.decorators';
 import { config } from '../config/config';
 import { UsersService } from '../users/users.service';
-import { LoginDto, RegisterDto, UpdateProfileDto } from './auth.dto';
+import { ChangePasswordDto, LoginDto, RegisterDto, UpdateProfileDto } from './auth.dto';
 import { AuthService } from './auth.service';
 
 @ApiTags('auth')
@@ -34,6 +34,7 @@ export class AuthController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'The signed-in user (also used to refresh status after admin approval)' })
+  @AllowWhilePasswordChange()
   @Get('me')
   async me(@CurrentUser() user: AuthUser) {
     return this.users.toPublic(await this.users.getOrFail(user.id));
@@ -44,5 +45,15 @@ export class AuthController {
   @Patch('me')
   updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
     return this.users.updateProfile(user.id, dto);
+  }
+
+  @ApiBearerAuth()
+  @AllowWhilePasswordChange()
+  @Throttle({ default: { limit: config.rateLimit.auth, ttl: 60_000 } })
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Change your password. Signs out your other devices and returns a new token.' })
+  @Post('me/password')
+  changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto) {
+    return this.auth.changePassword(user.id, dto.currentPassword, dto.newPassword);
   }
 }

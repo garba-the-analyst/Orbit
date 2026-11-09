@@ -2,8 +2,11 @@ import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@ne
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthUser, CurrentUser, Roles } from '../common/auth.decorators';
 import { Role } from '../common/enums';
-import { AcceptOrderDto, CreateOrderDto, PinDto, RateOrderDto, ReasonDto } from './orders.dto';
+import { AcceptOrderDto, CreateOrderDto, DispatchOrderDto, PinDto, RateOrderDto, ReasonDto } from './orders.dto';
 import { OrdersService } from './orders.service';
+
+/** Shop owners and drivers can buy too, so "customer" endpoints accept all three roles. */
+const BUYERS = [Role.CUSTOMER, Role.MERCHANT, Role.RIDER];
 
 /** Customer-facing order endpoints, plus the shared "order detail" every party uses. */
 @ApiTags('orders')
@@ -12,18 +15,32 @@ import { OrdersService } from './orders.service';
 export class OrdersController {
   constructor(private readonly orders: OrdersService) {}
 
-  @Roles(Role.CUSTOMER)
+  @Roles(...BUYERS)
   @ApiOperation({ summary: 'Place an order. Returns the order and a payment intent to complete.' })
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateOrderDto) {
     return this.orders.create(user, dto);
   }
 
-  @Roles(Role.CUSTOMER)
+  @Roles(...BUYERS)
   @ApiOperation({ summary: 'Your orders, newest first' })
   @Get()
   mine(@CurrentUser() user: AuthUser) {
     return this.orders.listForCustomer(user.id);
+  }
+
+  @Roles(...BUYERS)
+  @ApiOperation({ summary: 'Live position of the driver on your delivery, with the road route and ETA to where they are heading' })
+  @Get(':id/tracking')
+  tracking(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.orders.tracking(user, id);
+  }
+
+  @Roles(...BUYERS)
+  @ApiOperation({ summary: 'Items from a past order with today’s prices and stock, ready to put back in the basket' })
+  @Get(':id/reorder')
+  reorder(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.orders.reorderLines(user, id);
   }
 
   @ApiOperation({ summary: 'One order. What you see depends on your role (customer, shop, assigned rider, admin).' })
@@ -32,7 +49,7 @@ export class OrdersController {
     return this.orders.getFor(id, user);
   }
 
-  @Roles(Role.CUSTOMER)
+  @Roles(...BUYERS)
   @HttpCode(200)
   @ApiOperation({ summary: 'Try paying again after a failed payment' })
   @Post(':id/pay')
@@ -40,7 +57,7 @@ export class OrdersController {
     return this.orders.retryPayment(user, id);
   }
 
-  @Roles(Role.CUSTOMER)
+  @Roles(...BUYERS)
   @HttpCode(200)
   @ApiOperation({ summary: 'Cancel before the shop confirms. Paid orders are refunded.' })
   @Post(':id/cancel')
@@ -48,7 +65,7 @@ export class OrdersController {
     return this.orders.cancelByCustomer(user, id, dto.reason);
   }
 
-  @Roles(Role.CUSTOMER)
+  @Roles(...BUYERS)
   @HttpCode(200)
   @ApiOperation({ summary: 'Rate the shop after delivery' })
   @Post(':id/rate')
@@ -93,10 +110,10 @@ export class MerchantOrdersController {
   }
 
   @HttpCode(200)
-  @ApiOperation({ summary: 'Send out an order you deliver yourself' })
+  @ApiOperation({ summary: 'Send out an order you deliver yourself, optionally with one of your own riders' })
   @Post(':id/dispatch')
-  dispatch(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
-    return this.orders.startOwnDelivery(user.id, id);
+  dispatch(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: DispatchOrderDto) {
+    return this.orders.startOwnDelivery(user.id, id, dto.riderId);
   }
 
   @HttpCode(200)
