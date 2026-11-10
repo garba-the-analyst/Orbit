@@ -48,6 +48,13 @@ export class User {
   @Column({ type: 'boolean', default: false })
   mustChangePassword: boolean;
 
+  /** When this person accepted the terms and privacy notice, and which version. */
+  @Column({ type: DATETIME, nullable: true })
+  termsAcceptedAt: Date | null;
+
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  termsVersion: string | null;
+
   /** Tokens issued before this moment are rejected, so changing a password signs out other devices. */
   @Column({ type: DATETIME, nullable: true })
   passwordChangedAt: Date | null;

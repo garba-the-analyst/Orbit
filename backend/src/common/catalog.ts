@@ -86,6 +86,9 @@ export const GOODS_SPECS: Record<GoodsType, GoodsSpec> = {
   GENERAL: { type: 'GENERAL', label: 'Other goods', handling: 'Handle with normal care.', careful: false, urgent: false },
 };
 
+/** What a shop or service business can be listed under. Served to the app by GET /config. */
+export const SHOP_CATEGORIES = ['Food', 'Groceries', 'Farm produce', 'Fashion', 'Beauty & Health', 'Gadgets', 'Home & Hardware', 'Stationery', 'Services'];
+
 /** Rough fleet for a vehicle type. */
 export const fleetOf = (v: VehicleType): Fleet => VEHICLE_SPECS[v].fleet;
 

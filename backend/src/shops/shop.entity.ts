@@ -24,7 +24,7 @@ export class Shop {
   @Column({ type: 'varchar', length: 400, default: '' })
   description: string;
 
-  /** Food, Groceries, Stationery or Gadgets. */
+  /** One of SHOP_CATEGORIES (common/catalog.ts). */
   @Column({ type: 'varchar', length: 30 })
   category: string;
 

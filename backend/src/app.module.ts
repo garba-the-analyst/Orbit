@@ -5,48 +5,43 @@
  *   auth . users . shops(+products) . orders . payments . dispatch . earnings . admin . realtime
  */
 import { Module, OnApplicationBootstrap } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard, RolesGuard } from './common/auth.guards';
 import { config } from './config/config';
 import { DispatchModule } from './dispatch/dispatch.module';
 import { EarningsModule } from './earnings/earnings.module';
-import { LedgerEntry } from './earnings/ledger-entry.entity';
 import { AppController } from './health/app.controller';
-import { Favourite } from './favourites/favourite.entity';
 import { GeoModule } from './geo/geo.module';
-import { SavedPlace } from './geo/place.entity';
 import { FavouritesModule } from './favourites/favourites.module';
-import { Notification } from './notifications/notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
-import { Order, OrderItem } from './orders/order.entity';
 import { OrdersModule } from './orders/orders.module';
-import { Payment } from './payments/payment.entity';
 import { PaymentsModule } from './payments/payments.module';
-import { Product } from './products/product.entity';
 import { RealtimeModule } from './realtime/realtime.module';
 import { SeedService } from './seed/seed.service';
-import { ShopRider } from './shop-riders/shop-rider.entity';
 import { ShopRidersModule } from './shop-riders/shop-riders.module';
-import { Shop } from './shops/shop.entity';
 import { ShopsModule } from './shops/shops.module';
-import { Document } from './uploads/document.entity';
-import { Upload } from './uploads/upload.entity';
 import { UploadsModule } from './uploads/uploads.module';
 import { User } from './users/user.entity';
-import { PromoCode, PromoRedemption, SosAlert, Trip, TripOffer } from './trips/trip.entities';
+import { entities } from './database/entities';
+import { Product } from './products/product.entity';
+import { Shop } from './shops/shop.entity';
+import { AccountModule } from './account/account.module';
+import { AuditInterceptor } from './audit/audit.service';
+import { AuditModule } from './audit/audit.module';
+import { LegalModule } from './legal/legal.controller';
+import { MailModule } from './mail/mail.service';
 import { TripsModule } from './trips/trips.module';
 import { Vehicle } from './vehicles/vehicle.entity';
 import { VehiclesModule } from './vehicles/vehicles.module';
 import { UsersModule } from './users/users.module';
 
-const entities = [User, Shop, Product, Order, OrderItem, Payment, LedgerEntry, Upload, Document, Notification, Favourite, ShopRider, Vehicle, SavedPlace, Trip, TripOffer, PromoCode, PromoRedemption, SosAlert];
 
 /**
  * Database connection. SQLite (zero setup) by default; PostgreSQL when DB_TYPE=postgres.
@@ -59,7 +54,10 @@ function databaseOptions() {
       type: 'postgres' as const,
       url: config.db.url,
       entities,
-      synchronize: process.env.DB_SYNC !== 'false',
+      // Development and tests build tables from the entities. Production uses the migration files in database/migrations.
+      synchronize: (process.env.DB_SYNC ?? (config.isProduction ? 'false' : 'true')) === 'true',
+      migrations: [join(__dirname, 'database', 'migrations', '*.{ts,js}')],
+      migrationsRun: (process.env.RUN_MIGRATIONS ?? (config.isProduction ? 'true' : 'false')) === 'true',
       dropSchema: process.env.DB_DROP_SCHEMA === 'true', // tests only: start every test file from an empty database
       logging: process.env.DB_LOG === 'true' ? (['error'] as ['error']) : false,
     };
@@ -103,6 +101,10 @@ function databaseOptions() {
     ShopRidersModule,
     VehiclesModule,
     TripsModule,
+    MailModule,
+    LegalModule,
+    AuditModule,
+    AccountModule,
   ],
   controllers: [AppController],
   providers: [
@@ -111,6 +113,7 @@ function databaseOptions() {
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
 export class AppModule implements OnApplicationBootstrap {

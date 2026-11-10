@@ -3,7 +3,8 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Public } from '../common/auth.decorators';
-import { GOODS_SPECS, VEHICLE_SPECS } from '../common/catalog';
+import { GOODS_SPECS, SHOP_CATEGORIES, VEHICLE_SPECS } from '../common/catalog';
+import { LEGAL_VERSION } from '../legal/legal.content';
 import { MARKETS } from '../common/markets';
 import { scaleAmount } from '../common/money';
 import { config } from '../config/config';
@@ -54,6 +55,10 @@ export class AppController {
       commissionPct: config.business.commissionBps / 100,
       tripCommissionPct: config.trips.commissionBps / 100,
       paymentProvider: config.paymentProvider,
+      /** True while payments are simulated: the app shows a clear "test mode" banner and no real money moves. */
+      testMode: config.paymentProvider === 'mock',
+      categories: SHOP_CATEGORIES,
+      legal: { version: LEGAL_VERSION, consentRequired: config.consent.required },
       pendingPaymentTtlMin: config.business.pendingPaymentTtlMin,
       map: {
         provider: config.geo.provider,

@@ -23,6 +23,7 @@ import { RealtimeService } from '../realtime/realtime.service';
 import { Shop } from '../shops/shop.entity';
 import { User } from '../users/user.entity';
 import { PublicUser, UsersService } from '../users/users.service';
+import { LEGAL_VERSION } from '../legal/legal.content';
 import { LoginDto, RegisterDto } from './auth.dto';
 
 const MAX_FAILED_LOGINS = 5;
@@ -54,6 +55,9 @@ export class AuthService {
     const existing = await this.users.findOne({ where: { email: dto.email } });
     if (existing) throw new ConflictException('An account with this email already exists. Sign in instead.');
 
+    if (config.consent.required && dto.acceptTerms !== true) {
+      throw new BadRequestException('Please accept the Terms and Privacy Notice to create an account.');
+    }
     const needsVerification = dto.role === Role.MERCHANT || dto.role === Role.RIDER;
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_COST);
 
@@ -69,6 +73,8 @@ export class AuthService {
           vehicle: dto.role === Role.RIDER ? (dto.vehicle ?? null) : null,
           fleet: dto.role === Role.RIDER && dto.vehicle ? VEHICLE_SPECS[dto.vehicle as VehicleType].fleet : null,
           online: false,
+          termsAcceptedAt: dto.acceptTerms ? new Date() : null,
+          termsVersion: dto.acceptTerms ? LEGAL_VERSION : null,
         }),
       );
 

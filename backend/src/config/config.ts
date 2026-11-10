@@ -176,6 +176,17 @@ export const config = {
     arriveRadiusM: int('ARRIVE_RADIUS_M', 500),
   },
 
+  /** Email for password resets. With no SMTP_URL, mail is only logged (development). */
+  mail: {
+    url: process.env.SMTP_URL ?? '',
+    from: process.env.MAIL_FROM ?? 'ORBIT <no-reply@orbit.local>',
+    /** Where reset links point: the address of the web app (for example https://orbit-app.netlify.app). */
+    appUrl: (process.env.APP_URL ?? 'http://localhost:5173').replace(/\/$/, ''),
+  },
+
+  /** People must accept the terms and privacy notice to sign up. On by default in production. */
+  consent: { required: (process.env.REQUIRE_CONSENT ?? (isProduction ? 'true' : 'false')) === 'true' },
+
   /** Requests per minute per client. Auth routes are stricter to slow password guessing. */
   rateLimit: {
     global: process.env.NODE_ENV === 'test' ? 100_000 : int('RATE_LIMIT', 240),
@@ -190,6 +201,16 @@ export const config = {
   /** Demo data is never loaded in production, regardless of the flag. */
   seedOnBoot: !isProduction && (process.env.SEED_ON_BOOT ?? 'true') !== 'false',
 };
+
+if (isProduction) {
+  if (config.db.type !== 'postgres' && process.env.ALLOW_SQLITE_PROD !== 'true') {
+    throw new Error('Production needs PostgreSQL: set DB_TYPE=postgres and DATABASE_URL. (SQLite is for development.)');
+  }
+  if (config.db.type === 'postgres' && !config.db.url) throw new Error('DATABASE_URL is required when DB_TYPE=postgres.');
+  if (config.corsOrigins.length === 0) {
+    throw new Error('Set CORS_ORIGINS to the address(es) of your web app, comma separated (for example https://orbit-app.netlify.app,capacitor://localhost,http://localhost).');
+  }
+}
 
 if (config.business.courierPayout > config.business.orbitDeliveryFee) {
   throw new Error('COURIER_PAYOUT cannot exceed ORBIT_DELIVERY_FEE (ORBIT would lose money on every delivery).');

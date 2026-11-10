@@ -20,6 +20,8 @@ export enum AccountStatus {
   ACTIVE = 'ACTIVE',
   PENDING = 'PENDING_VERIFICATION',
   SUSPENDED = 'SUSPENDED',
+  /** The person deleted their account. Personal details are gone; past orders and trips remain without a name. */
+  DELETED = 'DELETED',
 }
 
 /** How the buyer receives the goods. This choice at checkout is ORBIT's core differentiator. */

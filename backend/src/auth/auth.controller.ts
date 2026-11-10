@@ -4,7 +4,8 @@ import { Throttle } from '@nestjs/throttler';
 import { AllowWhilePasswordChange, AuthUser, CurrentUser, Public } from '../common/auth.decorators';
 import { config } from '../config/config';
 import { UsersService } from '../users/users.service';
-import { ChangePasswordDto, LoginDto, RegisterDto, UpdateProfileDto } from './auth.dto';
+import { ChangePasswordDto, ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
+import { PasswordResetService } from './password-reset.service';
 import { AuthService } from './auth.service';
 
 @ApiTags('auth')
@@ -13,6 +14,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly users: UsersService,
+    private readonly resets: PasswordResetService,
   ) {}
 
   @Public()
@@ -30,6 +32,26 @@ export class AuthController {
   @Post('auth/login')
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: config.rateLimit.auth, ttl: 60_000 } })
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Email a password-reset link. The answer is the same whether or not the email has an account.' })
+  @Post('auth/forgot-password')
+  async forgot(@Body() dto: ForgotPasswordDto) {
+    await this.resets.request(dto.email);
+    return { ok: true, message: 'If that email has an account, a reset link is on its way. It works for 30 minutes.' };
+  }
+
+  @Public()
+  @Throttle({ default: { limit: config.rateLimit.auth, ttl: 60_000 } })
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Set a new password with the emailed token. Signs out every device.' })
+  @Post('auth/reset-password')
+  async reset(@Body() dto: ResetPasswordDto) {
+    await this.resets.reset(dto.token, dto.password);
+    return { ok: true };
   }
 
   @ApiBearerAuth()
