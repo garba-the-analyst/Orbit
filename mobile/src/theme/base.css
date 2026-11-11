@@ -21,7 +21,7 @@ body {
     box-shadow: 0 0 0 1px var(--line);
   }
   body {
-    background: #e7e9f2;
+    background: var(--desk);
   }
 }
 
@@ -140,11 +140,11 @@ body {
 }
 .btn-primary {
   background: var(--signal);
-  color: var(--ink);
+  color: var(--on-signal);
 }
 .btn-ink {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 .btn-line {
   background: transparent;
@@ -219,7 +219,7 @@ textarea.input {
 .input:focus {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(22, 26, 82, 0.12);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 .input.invalid {
   border-color: var(--bad);
@@ -245,7 +245,7 @@ textarea.input {
 }
 .chip[aria-pressed='true'] {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   box-shadow: none;
 }
 
@@ -294,7 +294,7 @@ textarea.input {
   padding: 3px 6px 2px;
   border-radius: 10px;
   background: var(--signal);
-  color: var(--ink);
+  color: var(--on-signal);
   font-size: var(--t-xs);
   line-height: 1;
   text-align: center;
@@ -373,20 +373,20 @@ textarea.input {
 }
 .notice.warn {
   background: var(--warn-wash);
-  color: #6b3a00;
+  color: var(--warn);
 }
 .notice.bad {
   background: var(--bad-wash);
-  color: #7d1d19;
+  color: var(--bad);
 }
 .notice.good {
   background: var(--good-wash);
-  color: #09562f;
+  color: var(--good);
 }
 
 /* Skeletons show the shape of what is loading. */
 .skeleton {
-  background: linear-gradient(90deg, #e6e8f2 25%, #eff0f7 37%, #e6e8f2 63%);
+  background: linear-gradient(90deg, var(--skeleton-a) 25%, var(--skeleton-b) 37%, var(--skeleton-a) 63%);
   background-size: 400% 100%;
   animation: shimmer 1.4s ease infinite;
   border-radius: 8px;

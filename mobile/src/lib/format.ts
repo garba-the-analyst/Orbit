@@ -1,13 +1,49 @@
-/** Display formatting. Nigerian conventions: ₦ with thousands separators, Lagos time (UTC+1, no DST). */
+/**
+ * Display formatting for every market ORBIT serves: the currency symbol, thousands separators, and times in the
+ * person's own time zone (Lagos, UTC+1, until the app starts and switches to the device's zone).
+ */
 
 const nf = new Intl.NumberFormat('en-NG', { maximumFractionDigits: 0 });
 
-/** 7100 -> "₦7,100" */
-export const naira = (amount: number | null | undefined): string =>
-  amount === null || amount === undefined ? '–' : `₦${nf.format(amount)}`;
+const SYMBOL: Record<string, string> = { NGN: '₦', GHS: 'GH₵', KES: 'KSh', ZAR: 'R' };
 
-const LAGOS_OFFSET_MS = 3_600_000;
-const lagos = (iso: string) => new Date(new Date(iso).getTime() + LAGOS_OFFSET_MS);
+/** 7100, 'NGN' -> "₦7,100"; 120, 'GHS' -> "GH₵120". Whole units: ORBIT does not show fractions. */
+export const money = (amount: number | null | undefined, currency = 'NGN'): string =>
+  amount === null || amount === undefined ? '–' : `${amount < 0 ? '−' : ''}${SYMBOL[currency] ?? `${currency} `}${nf.format(Math.abs(amount))}`;
+
+/** 7100 -> "₦7,100" (the default currency; kept for screens that only ever show naira). */
+let defaultCurrency = 'NGN';
+export const setDefaultCurrency = (c: string) => (defaultCurrency = c);
+export const naira = (amount: number | null | undefined): string => money(amount, defaultCurrency);
+
+let offsetMs = 3_600_000;
+/** Switches times to the device's own zone. Called once at startup; tests keep the Lagos default. */
+export function useDeviceTimezone() {
+  offsetMs = -new Date().getTimezoneOffset() * 60_000;
+}
+const lagos = (iso: string) => new Date(new Date(iso).getTime() + offsetMs);
+
+/** 1830 -> "1.8 km", 640 -> "640 m" */
+export function distance(m: number | null | undefined): string {
+  if (m === null || m === undefined) return '–';
+  return m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(m < 10_000 ? 1 : 0)} km`;
+}
+
+/** 2700 -> "45 min", 5400 -> "1 h 30 min" */
+export function duration(s: number | null | undefined): string {
+  if (s === null || s === undefined) return '–';
+  const min = Math.max(1, Math.round(s / 60));
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}`;
+}
+
+/** "2 min ago", "3 h ago", "Yesterday", "4 Nov" */
+export function ago(iso: string, now = Date.now()): string {
+  const s = Math.max(0, (now - new Date(iso).getTime()) / 1000);
+  if (s < 60) return 'Just now';
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86_400) return `${Math.floor(s / 3600)} h ago`;
+  return when(iso, new Date(now)).split(',')[0];
+}
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -24,7 +60,7 @@ export function clock(iso: string | null | undefined): string {
 export function when(iso: string | null | undefined, now = new Date()): string {
   if (!iso) return '';
   const d = lagos(iso);
-  const n = new Date(now.getTime() + LAGOS_OFFSET_MS);
+  const n = new Date(now.getTime() + offsetMs);
   const dayKey = (x: Date) => Math.floor(x.getTime() / 86_400_000);
   const diff = dayKey(n) - dayKey(d);
   const day =
@@ -69,7 +105,16 @@ export function inkOn(hex: string): '#161a52' | '#ffffff' {
 }
 
 export const VEHICLE_LABEL: Record<string, string> = {
-  MOTORCYCLE: 'Motorcycle',
   BICYCLE: 'Bicycle',
-  KEKE: 'Keke',
+  MOTORCYCLE: 'Motorcycle',
+  KEKE: 'Keke (tricycle)',
+  CAR: 'Car',
+  VAN: 'Van',
+  TRUCK: 'Truck',
+  LORRY: 'Lorry',
+  LONG_HAUL: 'Long-haul truck',
 };
+
+/** Light vehicles carry people and parcels around town; heavy ones haul freight. */
+export const LIGHT_VEHICLES = ['BICYCLE', 'MOTORCYCLE', 'KEKE', 'CAR'] as const;
+export const HEAVY_VEHICLES = ['VAN', 'TRUCK', 'LORRY', 'LONG_HAUL'] as const;

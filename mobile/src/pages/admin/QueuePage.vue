@@ -4,11 +4,13 @@ import { computed, ref } from 'vue';
 import { api } from '../../api/endpoints';
 import { useLive } from '../../api/socket';
 import type { VerificationQueue } from '../../api/types';
+import ReviewDocs from '../../components/ReviewDocs.vue';
 import EmptyState from '../../components/EmptyState.vue';
 import ListSkeleton from '../../components/ListSkeleton.vue';
 import { VEHICLE_LABEL, when } from '../../lib/format';
 import { confirmAction, errorMessage, showError, success, toast } from '../../lib/ui';
 import { useBadges } from '../../stores/badges';
+import { autoTour } from '../../lib/tour';
 
 const badges = useBadges();
 const queue = ref<VerificationQueue>({ merchants: [], riders: [] });
@@ -27,7 +29,10 @@ async function load() {
     loading.value = false;
   }
 }
-onIonViewWillEnter(load);
+onIonViewWillEnter(() => {
+  load();
+  autoTour('admin', 1500);
+});
 useLive(['admin.changed'], load);
 async function refresher(ev: CustomEvent) {
   await load();
@@ -78,7 +83,7 @@ async function decline(userId: string, label: string) {
     <ion-content :fullscreen="true">
       <ion-refresher slot="fixed" @ionRefresh="refresher"><ion-refresher-content /></ion-refresher>
       <main class="screen root">
-        <h1 class="title">Verification</h1>
+        <h1 class="title" data-tour="admin-queue">Verification</h1>
         <p class="lede">Shops and riders go live only after you approve them.</p>
 
         <ListSkeleton v-if="loading" :rows="3" :sign="false" />
@@ -96,6 +101,7 @@ async function decline(userId: string, label: string) {
                 <div class="small muted">{{ m.shop?.category }} · {{ m.shop?.address }}</div>
                 <div class="small" style="margin-top: 8px">{{ m.name }} · <a :href="`tel:${m.phone}`" class="tel">{{ m.phone }}</a></div>
                 <div class="xsmall muted">{{ m.email }} · signed up {{ when(m.createdAt) }}</div>
+                <ReviewDocs :documents="m.documents" @changed="load" />
                 <div class="btns">
                   <button class="btn btn-primary small-btn" :disabled="busyId === m.userId" @click="approve(m.userId, m.shop?.name ?? m.name)">Approve shop</button>
                   <button class="btn btn-bad small-btn" :disabled="busyId === m.userId" @click="decline(m.userId, m.shop?.name ?? m.name)">Decline</button>
@@ -109,9 +115,10 @@ async function decline(userId: string, label: string) {
             <ul class="list">
               <li v-for="r in queue.riders" :key="r.userId" style="padding: 18px 0">
                 <div class="strong name">{{ r.name }}</div>
-                <div class="small muted">{{ r.vehicle ? VEHICLE_LABEL[r.vehicle] : 'Vehicle not given' }}</div>
+                <div class="small muted">{{ r.vehicle ? VEHICLE_LABEL[r.vehicle] : 'Vehicle not given' }}<template v-if="r.fleet"> · {{ r.fleet === 'HEAVY' ? 'Heavy goods' : 'Light fleet' }}</template></div>
                 <div class="small" style="margin-top: 8px"><a :href="`tel:${r.phone}`" class="tel">{{ r.phone }}</a></div>
                 <div class="xsmall muted">{{ r.email }} · signed up {{ when(r.createdAt) }}</div>
+                <ReviewDocs :documents="r.documents" :vehicles="r.vehicles" @changed="load" />
                 <div class="btns">
                   <button class="btn btn-primary small-btn" :disabled="busyId === r.userId" @click="approve(r.userId, r.name)">Approve rider</button>
                   <button class="btn btn-bad small-btn" :disabled="busyId === r.userId" @click="decline(r.userId, r.name)">Decline</button>

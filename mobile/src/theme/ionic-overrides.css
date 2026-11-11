@@ -93,14 +93,14 @@ ion-tab-button .tab-badge {
   padding: 0 5px;
   border-radius: 9px;
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   font: 700 0.6875rem/18px var(--font-display);
   text-align: center;
 }
 
 /* Toggles */
 ion-toggle {
-  --track-background: #c9cde0;
+  --track-background: var(--slate-faint);
   --track-background-checked: var(--good);
   --handle-background: #fff;
   --handle-background-checked: #fff;
@@ -126,7 +126,7 @@ ion-modal.sheet::part(handle) {
 /* Toasts and alerts follow the brand type */
 ion-toast {
   --background: var(--ink);
-  --color: #fff;
+  --color: var(--on-ink);
   --border-radius: 12px;
   font-family: var(--font-body);
 }
@@ -138,4 +138,91 @@ ion-alert {
 ion-alert .alert-title {
   font-family: var(--font-display);
   font-weight: 600;
+}
+
+/* ---- Dark theme: Ionic's own variables follow ORBIT's tokens ------------------------------------ */
+:root[data-theme='dark'] {
+  --ion-text-color-rgb: 232, 234, 255;
+  --ion-color-primary: #e8eaff;
+  --ion-color-primary-rgb: 232, 234, 255;
+  --ion-color-primary-contrast: #11143d;
+  --ion-color-primary-contrast-rgb: 17, 20, 61;
+  --ion-color-primary-shade: #cdd0ec;
+  --ion-color-primary-tint: #ffffff;
+  --ion-toolbar-color: var(--ink);
+}
+ion-tab-bar {
+  --background: var(--surface);
+}
+ion-modal {
+  --background: var(--surface);
+  --backdrop-opacity: 0.55;
+}
+ion-popover {
+  --background: var(--surface);
+}
+ion-alert .alert-wrapper {
+  background: var(--surface);
+  color: var(--ink);
+}
+ion-alert .alert-message,
+ion-alert .alert-button {
+  color: var(--ink);
+}
+ion-spinner {
+  color: var(--ink);
+}
+ion-refresher-content {
+  --color: var(--slate);
+}
+
+/* Page transitions: the incoming page rises a few pixels as it fades in, which reads as "arriving". */
+ion-router-outlet > .ion-page:not(.ion-page-hidden) {
+  animation: page-in var(--dur-3) var(--ease) both;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* driver.js walkthrough, restyled to the ORBIT tokens */
+.driver-popover.orbit-tour {
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-body);
+}
+.orbit-tour .driver-popover-title {
+  font: 700 1.05rem var(--font-display);
+}
+.orbit-tour .driver-popover-description,
+.orbit-tour .driver-popover-progress-text {
+  color: var(--slate);
+}
+.orbit-tour .driver-popover-arrow-side-top.driver-popover-arrow { border-top-color: var(--surface); }
+.orbit-tour .driver-popover-arrow-side-bottom.driver-popover-arrow { border-bottom-color: var(--surface); }
+.orbit-tour .driver-popover-arrow-side-left.driver-popover-arrow { border-left-color: var(--surface); }
+.orbit-tour .driver-popover-arrow-side-right.driver-popover-arrow { border-right-color: var(--surface); }
+.orbit-tour button {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  text-shadow: none;
+  font-family: var(--font-display);
+  font-weight: 600;
+  padding: 8px 14px;
+}
+.orbit-tour .driver-popover-next-btn {
+  background: var(--signal);
+  color: var(--on-signal);
+  border-color: var(--signal);
 }

@@ -2,7 +2,7 @@
 /** One order in a customer's history. */
 import { computed } from 'vue';
 import type { OrderView } from '../api/types';
-import { naira, plural, when } from '../lib/format';
+import { money, plural, when } from '../lib/format';
 import { FULFILMENT_LABEL, shortStatus } from '../lib/status';
 import ShopSign from './ShopSign.vue';
 
@@ -17,7 +17,7 @@ const summary = computed(() => props.order.items.map((i) => `${i.qty} × ${i.nam
     <div class="grow">
       <div class="row between">
         <div class="name">{{ order.shop.name }}</div>
-        <div class="money">{{ naira(order.total) }}</div>
+        <div class="money">{{ money(order.total, order.currency) }}</div>
       </div>
       <div class="items small muted">{{ summary }}</div>
       <div class="row between meta">

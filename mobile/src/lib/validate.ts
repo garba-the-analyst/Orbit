@@ -21,9 +21,13 @@ export function passwordError(v: string): string | null {
   return null;
 }
 
+/** Nigerian numbers may be typed locally (0803…); other countries need the +code (+233…, +254…, +27…). */
+export const INTL_PHONE = /^\+(233|254|27|234)\d{8,11}$/;
+
 export function phoneError(v: string): string | null {
   if (!v.trim()) return 'Enter your phone number.';
-  if (!NG_PHONE.test(cleanPhone(v))) return 'Enter a valid Nigerian number, like 08031234567.';
+  const p = cleanPhone(v);
+  if (!NG_PHONE.test(p) && !INTL_PHONE.test(p)) return 'Enter a valid number, like 08031234567 or +233244123456.';
   return null;
 }
 
@@ -36,7 +40,7 @@ export function nameError(v: string, what = 'your name'): string | null {
 
 export function addressError(v: string): string | null {
   const s = v.trim();
-  if (s.length < 5) return 'Say where to deliver, like “Hostel A, Room 12”.';
+  if (s.length < 5) return 'Say where, like “12 Ahmadu Bello Way, Kaduna”.';
   if (s.length > 240) return 'That is too long. Use 240 characters or fewer.';
   return null;
 }

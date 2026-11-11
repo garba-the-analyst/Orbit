@@ -31,6 +31,23 @@
   --good-wash: #e3f4eb;
   --bad-wash: #fbe8e7;
   --warn-wash: #fff1dc;
+  /* Text that sits ON the brand colours. These never flip with the theme, so contrast holds in light and dark. */
+  --on-ink: #ffffff;
+  --on-signal: #161a52;
+  --skeleton-a: #e6e8f2;
+  --skeleton-b: #f1f2f9;
+  --shadow-lg: 0 8px 24px rgba(22, 26, 82, 0.18);
+  --shadow-sm: 0 2px 8px rgba(22, 26, 82, 0.08);
+  --scrim: rgba(22, 26, 82, 0.45);
+  --focus-ring: rgba(22, 26, 82, 0.12);
+  --desk: #e7e9f2;
+  --map-tiles-filter: none;
+
+  /* Motion: one easing curve and three durations keep every animation in the same family. */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-1: 120ms;
+  --dur-2: 220ms;
+  --dur-3: 420ms;
 
   /* Type */
   --font-display: 'Bricolage Grotesque Variable', 'ORBIT Naira', system-ui, sans-serif;
@@ -55,6 +72,38 @@
   --gutter: 20px;
 
   --tap: 48px;
+}
+
+/*
+ * Dark theme. --ink is "the text colour", so in dark it becomes light; surfaces get deep indigo, not black,
+ * which keeps the brand's blue and avoids the harsh contrast of white on pure black.
+ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --ink: #e8eaff;
+  --ink-soft: #b9bdf0;
+  --on-ink: #11143d;
+  --paper: #0c0e24;
+  --surface: #151937;
+  --slate: #a4aacd;
+  --slate-faint: #7c82a8;
+  --line: #2a2f5c;
+  --good: #3fd08b;
+  --bad: #ff7f77;
+  --warn: #ffb347;
+  --ink-wash: #1e2350;
+  --good-wash: #0f2f24;
+  --bad-wash: #3b1917;
+  --warn-wash: #3a2b12;
+  --skeleton-a: #1c2148;
+  --skeleton-b: #2a3064;
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --scrim: rgba(3, 4, 16, 0.65);
+  --focus-ring: rgba(232, 234, 255, 0.22);
+  --desk: #070818;
+  /* OpenStreetMap tiles are light; this tints them to sit comfortably in a dark screen. */
+  --map-tiles-filter: invert(0.92) hue-rotate(188deg) saturate(0.55) brightness(0.92) contrast(0.95);
 }
 
 @media (prefers-reduced-motion: reduce) {

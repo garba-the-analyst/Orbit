@@ -54,7 +54,7 @@ defineProps<{ pin: string; locked?: boolean; hint: string }>();
 }
 .digits.locked span {
   background: var(--slate-faint);
-  color: #fff;
+  color: var(--on-ink);
 }
 /* The tear line: a dashed rule with a notch cut out of each side. */
 .tear {

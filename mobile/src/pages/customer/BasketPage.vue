@@ -7,9 +7,11 @@ import type { Fulfilment } from '../../api/types';
 import EmptyState from '../../components/EmptyState.vue';
 import QtyStepper from '../../components/QtyStepper.vue';
 import ShopSign from '../../components/ShopSign.vue';
-import { naira, plural } from '../../lib/format';
+import { money, plural } from '../../lib/format';
+import PlaceSheet from '../../components/PlaceSheet.vue';
+import type { Point } from '../../api/types';
 import { showError, toast, tap } from '../../lib/ui';
-import { addressError, cleanPhone, phoneError } from '../../lib/validate';
+import { cleanPhone, phoneError } from '../../lib/validate';
 import { useAppConfig } from '../../stores/appConfig';
 import { useAuth } from '../../stores/auth';
 import { useCart } from '../../stores/cart';
@@ -26,6 +28,10 @@ const form = reactive({ address: '', note: '', phone: auth.user?.phone ?? '' });
 const touched = ref(false);
 const busy = ref(false);
 const refreshing = ref(false);
+const cur = ref(cfg.currency);
+const m = (n: number) => money(n, cur.value);
+const dropPoint = ref<Point | null>(null);
+const picking = ref(false);
 
 const shop = computed(() => cart.shop);
 const isDelivery = computed(() => fulfilment.value !== 'PICKUP');
@@ -43,14 +49,14 @@ const options = computed<Option[]>(() => {
     { value: 'PICKUP', title: 'Pick up', text: `Collect from ${s.address}`, fee: 0 },
   ];
   if (s.offersDelivery) list.push({ value: 'MERCHANT_DELIVERY', title: 'Shop delivers', text: `${s.name} brings it to you`, fee: s.deliveryFee });
-  list.push({ value: 'ORBIT_COURIER', title: 'ORBIT rider', text: 'A verified rider collects and brings it, with live tracking', fee: cfg.config.orbitDeliveryFee });
+  list.push({ value: 'ORBIT_COURIER', title: 'ORBIT rider', text: 'A verified rider collects and brings it, with live tracking', fee: (cfg.config.markets.find((k) => k.currency === cur.value)?.orbitDeliveryFee ?? cfg.orbitDeliveryFee) });
   return list;
 });
 const deliveryFee = computed(() => options.value.find((o) => o.value === fulfilment.value)?.fee ?? 0);
 const total = computed(() => cart.subtotal + deliveryFee.value);
 
 const errors = computed(() => ({
-  address: isDelivery.value ? addressError(form.address) : null,
+  address: isDelivery.value && !dropPoint.value ? 'Choose where to deliver.' : null,
   phone: phoneError(form.phone),
 }));
 const err = (k: 'address' | 'phone') => (touched.value ? errors.value[k] : null);
@@ -61,6 +67,7 @@ async function refresh() {
   refreshing.value = true;
   try {
     const { shop: fresh, products } = await api.shop(cart.shop.id);
+    cur.value = fresh.currency;
     const changes: string[] = [];
     const lines = [...cart.lines];
     for (const line of lines) {
@@ -70,7 +77,7 @@ async function refresh() {
         cart.setQty(summary, line.product, 0);
         changes.push(`${line.product.name} is no longer available`);
       } else {
-        if (p.price !== line.product.price) changes.push(`${p.name} is now ${naira(p.price)}`);
+        if (p.price !== line.product.price) changes.push(`${p.name} is now ${m(p.price)}`);
         if (p.stock < line.qty) changes.push(`Only ${p.stock} ${p.name} left`);
         cart.setQty(summary, { id: p.id, name: p.name, price: p.price, stock: p.stock }, line.qty);
       }
@@ -101,7 +108,14 @@ async function pay() {
       items: cart.lines.map((l) => ({ productId: l.product.id, qty: l.qty })),
       fulfilment: fulfilment.value,
       contactPhone: cleanPhone(form.phone),
-      ...(isDelivery.value ? { deliveryAddress: form.address.trim(), deliveryNote: form.note.trim() || undefined } : {}),
+      ...(isDelivery.value
+        ? {
+            deliveryAddress: [form.address.trim(), dropPoint.value!.address].filter(Boolean).join(', ').slice(0, 240),
+            deliveryLat: dropPoint.value!.lat,
+            deliveryLng: dropPoint.value!.lng,
+            deliveryNote: form.note.trim() || undefined,
+          }
+        : {}),
     });
     checkout.set(res.order.id, res.payment);
     cart.clear(); // stock is now reserved for this order
@@ -143,10 +157,10 @@ async function pay() {
             <li v-for="l in cart.lines" :key="l.product.id" class="line">
               <div class="grow">
                 <div class="lname">{{ l.product.name }}</div>
-                <div class="small muted money">{{ naira(l.product.price) }} each</div>
+                <div class="small muted money">{{ m(l.product.price) }} each</div>
               </div>
               <QtyStepper :qty="l.qty" :max="Math.min(l.product.stock, cart.MAX_QTY)" :label="l.product.name" @change="cart.setQty(shop, l.product, $event)" />
-              <div class="money lt">{{ naira(l.qty * l.product.price) }}</div>
+              <div class="money lt">{{ m(l.qty * l.product.price) }}</div>
             </li>
           </ul>
 
@@ -159,18 +173,22 @@ async function pay() {
                 <span class="strong ot">{{ o.title }}</span>
                 <span class="small muted">{{ o.text }}</span>
               </span>
-              <span class="money">{{ o.fee === 0 ? 'Free' : naira(o.fee) }}</span>
+              <span class="money">{{ o.fee === 0 ? 'Free' : m(o.fee) }}</span>
             </label>
           </fieldset>
 
           <div class="stack" style="margin-top: 20px; --stack: 16px">
             <template v-if="isDelivery">
-              <label class="field">
+              <div class="field">
                 <span class="label">Where should we deliver?</span>
-                <input v-model="form.address" class="input" :class="{ invalid: err('address') }" autocomplete="street-address" placeholder="Hostel A, Room 12" />
+                <button type="button" class="input pickbtn" :class="{ invalid: err('address') }" @click="picking = true">{{ dropPoint?.address ?? 'Search or pin your location' }}</button>
                 <span v-if="err('address')" class="error">{{ err('address') }}</span>
-              </label>
+              </div>
               <label class="field">
+                <span class="label">Flat, room or landmark (optional)</span>
+                <input v-model="form.address" class="input" maxlength="80" autocomplete="off" placeholder="Block B, Room 12, green gate" />
+              </label>
+<label class="field">
                 <span class="label">Note for the delivery person (optional)</span>
                 <input v-model="form.note" class="input" maxlength="240" placeholder="Call when you reach the gate" />
               </label>
@@ -184,24 +202,33 @@ async function pay() {
           </div>
 
           <section class="receipt" aria-label="Order total">
-            <div class="kv"><span>{{ plural(cart.itemCount, 'item') }}</span><span class="money">{{ naira(cart.subtotal) }}</span></div>
-            <div class="kv"><span>{{ fulfilment === 'PICKUP' ? 'Pickup' : 'Delivery' }}</span><span class="money">{{ deliveryFee === 0 ? 'Free' : naira(deliveryFee) }}</span></div>
-            <div class="kv total"><span>Total</span><span class="money">{{ naira(total) }}</span></div>
+            <div class="kv"><span>{{ plural(cart.itemCount, 'item') }}</span><span class="money">{{ m(cart.subtotal) }}</span></div>
+            <div class="kv"><span>{{ fulfilment === 'PICKUP' ? 'Pickup' : 'Delivery' }}</span><span class="money">{{ deliveryFee === 0 ? 'Free' : m(deliveryFee) }}</span></div>
+            <div class="kv total"><span>Total</span><span class="money">{{ m(total) }}</span></div>
           </section>
 
           <button class="btn btn-primary block" style="margin-top: 20px" :disabled="busy || refreshing || !shop.isOpen" @click="pay">
-            {{ busy ? 'Placing order…' : `Pay ${naira(total)}` }}
+            {{ busy ? 'Placing order…' : `Pay ${m(total)}` }}
           </button>
           <p class="xsmall muted" style="margin: 12px 0 0; text-align: center">
             Your PIN for handover appears once you have paid. Prices are confirmed again when you pay.
           </p>
         </template>
       </main>
+      <PlaceSheet :open="picking" title="Delivery address" :near="dropPoint" @pick="(p) => { dropPoint = p; picking = false; }" @close="picking = false" />
     </ion-content>
   </ion-page>
 </template>
 
 <style scoped>
+.pickbtn {
+  text-align: left;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
 .line {
   display: flex !important;
   align-items: center;

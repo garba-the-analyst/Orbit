@@ -8,10 +8,12 @@ import type { OrderView } from '../../api/types';
 import EmptyState from '../../components/EmptyState.vue';
 import ListSkeleton from '../../components/ListSkeleton.vue';
 import ShopSign from '../../components/ShopSign.vue';
-import { minutesUntil, naira, plural } from '../../lib/format';
+import { minutesUntil, money, plural } from '../../lib/format';
 import { errorMessage, showError, success, toast } from '../../lib/ui';
 import { useAuth } from '../../stores/auth';
 import { useBadges } from '../../stores/badges';
+import { useAppConfig as useCfg } from '../../stores/appConfig';
+const naira = (v: number) => money(v, useCfg().currency);
 
 const auth = useAuth();
 const router = useRouter();
@@ -143,7 +145,7 @@ function state(j: OrderView): string {
 }
 .status-card.on {
   background: var(--good-wash);
-  box-shadow: inset 0 0 0 1px #b9e3cd;
+  box-shadow: inset 0 0 0 1px var(--good);
 }
 .block {
   display: block;

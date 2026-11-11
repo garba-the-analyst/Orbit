@@ -6,9 +6,10 @@ import { useLive } from '../../api/socket';
 import type { OrderView } from '../../api/types';
 import EmptyState from '../../components/EmptyState.vue';
 import ListSkeleton from '../../components/ListSkeleton.vue';
-import { naira, when } from '../../lib/format';
+import { money, when } from '../../lib/format';
 import { FULFILMENT_LABEL, shortStatus } from '../../lib/status';
 import { confirmAction, errorMessage, showError, toast } from '../../lib/ui';
+const naira = (v: number, c?: string) => money(v, c);
 
 const orders = ref<OrderView[]>([]);
 const loading = ref(true);
@@ -71,7 +72,7 @@ async function unlock(o: OrderView) {
           <li v-for="o in orders" :key="o.id" style="padding: 16px 0">
             <div class="row between">
               <span class="strong num">{{ o.waybillNo }}</span>
-              <span class="money">{{ naira(o.total) }}</span>
+              <span class="money">{{ naira(o.total, o.currency) }}</span>
             </div>
             <div class="small">{{ o.shop.name }} · {{ o.customer?.name }}</div>
             <div class="row between" style="margin-top: 6px">

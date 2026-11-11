@@ -12,10 +12,38 @@ import { io, Socket } from 'socket.io-client';
 import { onBeforeUnmount, onMounted } from 'vue';
 import { SOCKET_URL } from './client';
 
-export type LiveEvent = 'order.updated' | 'jobs.changed' | 'admin.changed' | 'account.updated' | 'connect';
+export type LiveEvent =
+  | 'order.updated'
+  | 'trip.updated'
+  | 'offers.changed'
+  | 'jobs.changed'
+  | 'admin.changed'
+  | 'account.updated'
+  | 'notification.new'
+  | 'connect';
+
+/** A live position from the driver you are riding with. The one event that carries data rather than a signal. */
+export interface CourierMoved {
+  orderId?: string;
+  tripId?: string;
+  lat: number;
+  lng: number;
+  heading: number | null;
+}
+
+/** Subscribes to driver positions. Returns an unsubscribe function. */
+export function onCourierMoved(fn: (p: CourierMoved) => void): () => void {
+  courierHandlers.add(fn);
+  socket?.on('courier.moved', fn);
+  return () => {
+    courierHandlers.delete(fn);
+    socket?.off('courier.moved', fn);
+  };
+}
 
 let socket: Socket | null = null;
 const registry = new Map<LiveEvent, Set<() => void>>();
+const courierHandlers = new Set<(p: CourierMoved) => void>();
 
 export function connectSocket(token: string) {
   disconnectSocket();
@@ -25,6 +53,7 @@ export function connectSocket(token: string) {
     reconnectionDelayMax: 8000,
   });
   for (const [event, handlers] of registry) for (const fn of handlers) s.on(event, fn);
+  for (const fn of courierHandlers) s.on('courier.moved', fn);
   socket = s;
 }
 

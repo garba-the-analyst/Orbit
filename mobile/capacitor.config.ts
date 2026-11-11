@@ -13,6 +13,7 @@ const config: CapacitorConfig = {
   plugins: {
     Keyboard: { resize: 'body' },
     StatusBar: { style: 'DARK', backgroundColor: '#F4F5F9' },
+    SplashScreen: { launchShowDuration: 0 },
   },
 };
 

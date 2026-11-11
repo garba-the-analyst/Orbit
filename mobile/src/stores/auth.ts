@@ -7,11 +7,16 @@ import type { RegisterBody, Role, User } from '../api/types';
 
 /** Where each role lands after signing in. */
 export const HOME_BY_ROLE: Record<Role, string> = {
-  CUSTOMER: '/c/shops',
+  CUSTOMER: '/c/home',
   MERCHANT: '/m/orders',
-  RIDER: '/r/jobs',
+  RIDER: '/r/drive',
   ADMIN: '/a/queue',
 };
+
+let resolveReady: () => void = () => undefined;
+const readyPromise = new Promise<void>((r) => (resolveReady = r));
+/** Resolves once the saved session has been checked. The router waits on this before its first decision. */
+export const whenAuthReady = () => readyPromise;
 
 export const useAuth = defineStore('auth', () => {
   const user = ref<User | null>(null);
@@ -42,6 +47,7 @@ export const useAuth = defineStore('auth', () => {
       }
     }
     ready.value = true;
+    resolveReady();
   }
 
   async function login(email: string, password: string) {

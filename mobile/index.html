@@ -4,10 +4,21 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#F4F5F9" />
-    <meta name="color-scheme" content="light" />
-    <meta name="description" content="ORBIT: shop local, get it delivered or pick it up." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="ORBIT: rides, deliveries, freight and shops across Africa." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>ORBIT</title>
+    <!-- Apply the saved theme before first paint so dark mode never flashes light. -->
+    <script>
+      (function () {
+        try {
+          var p = localStorage.getItem('orbit.theme') || 'system';
+          var dark = p === 'dark' || (p === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+          document.documentElement.style.background = dark ? '#0c0e24' : '#f4f5f9';
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

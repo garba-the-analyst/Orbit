@@ -70,3 +70,20 @@ export async function success() {
     /* ignore */
   }
 }
+
+/** Asks for a password (or any single line) in a dialog. Resolves to null when cancelled. */
+export async function promptText(opts: { title: string; message?: string; placeholder?: string; type?: 'password' | 'text'; confirm: string }): Promise<string | null> {
+  return new Promise(async (resolve) => {
+    const alert = await alertController.create({
+      header: opts.title,
+      message: opts.message,
+      inputs: [{ name: 'v', type: opts.type ?? 'text', placeholder: opts.placeholder, attributes: { autocomplete: opts.type === 'password' ? 'current-password' : 'off' } }],
+      buttons: [
+        { text: 'Cancel', role: 'cancel', handler: () => resolve(null) },
+        { text: opts.confirm, handler: (d: { v?: string }) => resolve(d.v?.trim() ? d.v : null) },
+      ],
+    });
+    alert.onDidDismiss().then(() => resolve(null));
+    await alert.present();
+  });
+}

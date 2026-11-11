@@ -8,9 +8,10 @@ import type { OrderView } from '../../api/types';
 import OrbitTracker from '../../components/OrbitTracker.vue';
 import PinStub from '../../components/PinStub.vue';
 import ShopSign from '../../components/ShopSign.vue';
-import { clock, firstName, minutesUntil, naira, VEHICLE_LABEL, when } from '../../lib/format';
+import { clock, firstName, minutesUntil, money, VEHICLE_LABEL, when } from '../../lib/format';
 import { FULFILMENT_LABEL, stopIndex, stopsFor, trackerTitle } from '../../lib/status';
 import { confirmAction, errorMessage, showError, success, toast } from '../../lib/ui';
+const naira = (v: number) => money(v, order.value?.currency);
 
 const route = useRoute();
 const router = useRouter();

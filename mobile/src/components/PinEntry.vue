@@ -72,7 +72,7 @@ input {
 }
 .box.on {
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(22, 26, 82, 0.12);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 .invalid .box {
   border-color: var(--bad);

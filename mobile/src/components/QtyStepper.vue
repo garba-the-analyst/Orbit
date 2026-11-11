@@ -68,11 +68,11 @@ button:disabled {
 }
 .plus {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 .plus.solo {
   background: var(--signal);
-  color: var(--ink);
+  color: var(--on-signal);
   padding: 0 14px 0 10px;
 }
 .q {

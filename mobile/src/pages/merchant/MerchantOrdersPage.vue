@@ -7,7 +7,9 @@ import type { OrderView, Shop } from '../../api/types';
 import EmptyState from '../../components/EmptyState.vue';
 import ListSkeleton from '../../components/ListSkeleton.vue';
 import PinSheet from '../../components/PinSheet.vue';
-import { clock, minutesUntil, naira, plural, when } from '../../lib/format';
+import { actionSheetController } from '@ionic/vue';
+import type { ShopRiderLink } from '../../api/types';
+import { clock, minutesUntil, money, plural, when } from '../../lib/format';
 import { FULFILMENT_LABEL } from '../../lib/status';
 import { confirmAction, errorMessage, showError, success, toast } from '../../lib/ui';
 import { useBadges } from '../../stores/badges';
@@ -96,6 +98,21 @@ const pinOrder = ref<OrderView | null>(null);
 const pinBusy = ref(false);
 const pinError = ref('');
 
+const riders = ref<ShopRiderLink[]>([]);
+async function sendOut(o: OrderView) {
+  if (!riders.value.length) riders.value = (await api.merchant.riders().catch(() => [] as ShopRiderLink[])).filter((r) => r.status === 'ACTIVE');
+  if (!riders.value.length) return act(o, () => api.merchant.dispatch(o.id), 'Out for delivery.');
+  const sheet = await actionSheetController.create({
+    header: 'Who is delivering?',
+    buttons: [
+      ...riders.value.map((r) => ({ text: `${r.name}${r.online ? ' (online)' : ''}`, handler: () => void act(o, () => api.merchant.dispatch(o.id, r.riderId), `Out for delivery with ${r.name}.`) })),
+      { text: 'I will deliver it myself', handler: () => void act(o, () => api.merchant.dispatch(o.id), 'Out for delivery.') },
+      { text: 'Cancel', role: 'cancel' },
+    ],
+  });
+  await sheet.present();
+}
+
 function openPin(o: OrderView) {
   pinError.value = '';
   pinOrder.value = o;
@@ -171,10 +188,10 @@ const BAR: Record<string, string> = { PLACED: 'var(--signal)', CONFIRMED: 'var(-
 
             <div class="row between">
               <span class="small muted">{{ o.status === 'CANCELLED' ? 'Cancelled' : 'You earn' }}</span>
-              <span class="money">{{ o.status === 'CANCELLED' ? '–' : naira(o.money.yourEarnings) }}</span>
+              <span class="money">{{ o.status === 'CANCELLED' ? '–' : money(o.money.yourEarnings, o.currency) }}</span>
             </div>
             <div class="xsmall muted">
-              Sales {{ naira(o.money.itemSales) }} less {{ naira(o.money.commission) }} ORBIT commission<template v-if="o.fulfilment === 'MERCHANT_DELIVERY'"> plus your {{ naira(o.deliveryFee) }} delivery fee</template>
+              Sales {{ money(o.money.itemSales, o.currency) }} less {{ money(o.money.commission, o.currency) }} ORBIT commission<template v-if="o.fulfilment === 'MERCHANT_DELIVERY'"> plus your {{ money(o.deliveryFee, o.currency) }} delivery fee</template>
             </div>
 
             <div v-if="o.fulfilment === 'MERCHANT_DELIVERY' && o.deliveryAddress && o.status !== 'CANCELLED' && o.status !== 'DELIVERED'" class="notice" style="margin-top: 12px">
@@ -209,7 +226,7 @@ const BAR: Record<string, string> = { PLACED: 'var(--signal)', CONFIRMED: 'var(-
                 <button class="btn btn-primary block" @click="openPin(o)">Hand over with PIN</button>
               </template>
               <template v-else-if="o.fulfilment === 'MERCHANT_DELIVERY'">
-                <button class="btn btn-primary block" :disabled="busyId === o.id" @click="act(o, () => api.merchant.dispatch(o.id), 'Out for delivery.')">Send out for delivery</button>
+                <button class="btn btn-primary block" :disabled="busyId === o.id" @click="sendOut(o)">Send out for delivery</button>
               </template>
               <p v-else class="notice" style="margin: 12px 0 0">
                 <template v-if="o.courier">{{ o.courier.name }} is coming to collect this. Hand it over when they arrive.</template>

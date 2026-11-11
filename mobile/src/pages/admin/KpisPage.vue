@@ -8,7 +8,7 @@ import { computed, ref } from 'vue';
 import { api } from '../../api/endpoints';
 import { useLive } from '../../api/socket';
 import type { Kpis } from '../../api/types';
-import { naira, when } from '../../lib/format';
+import { money, when } from '../../lib/format';
 import { errorMessage } from '../../lib/ui';
 
 const k = ref<Kpis | null>(null);
@@ -26,12 +26,14 @@ async function load() {
   }
 }
 onIonViewWillEnter(load);
-useLive(['order.updated'], load);
+useLive(['order.updated', 'trip.updated'], load);
 async function refresher(ev: CustomEvent) {
   await load();
   (ev.target as HTMLIonRefresherElement).complete();
 }
 
+const cur = computed(() => k.value?.currency ?? 'NGN');
+const naira = (v: number) => money(v, cur.value);
 const pct = (v: number | null) => (v === null ? 'No data yet' : `${v}%`);
 const num = (v: number | null, unit = '') => (v === null ? 'No data yet' : `${v.toLocaleString('en-NG')}${unit}`);
 
@@ -62,6 +64,21 @@ const sections = computed<Array<{ title: string; rows: Row[] }>>(() => {
       ],
     },
     {
+      title: 'Rides and parcels',
+      rows: [
+        { label: 'Trips completed', value: num(d.mobility.completedTrips), note: `${d.mobility.rides} rides · ${d.mobility.parcels} parcels and freight` },
+        { label: 'Fares (GMV)', value: naira(d.mobility.gmv) },
+        { label: 'Average fare', value: d.mobility.averageFare === null ? 'No data yet' : naira(d.mobility.averageFare) },
+        { label: 'Trip completion', value: pct(d.mobility.completionRatePct) },
+        { label: 'Looking for a driver / on the road', value: `${d.mobility.searchingNow} / ${d.mobility.onTheRoadNow}` },
+        { label: 'Average driver rating', value: d.mobility.averageDriverRating === null ? 'No data yet' : `${d.mobility.averageDriverRating} ★` },
+        { label: 'Open safety alerts', value: num(d.mobility.openSafetyAlerts) },
+        { label: 'ORBIT trip revenue', value: naira(d.mobility.platformRevenue) },
+        { label: 'Owed to drivers', value: naira(d.mobility.owedToDrivers) },
+        { label: 'Cash commission to collect', value: naira(d.mobility.cashCommissionDue), note: 'Drivers who took cash owe ORBIT this' },
+      ],
+    },
+    {
       title: 'Financial',
       rows: [
         { label: 'ORBIT revenue', value: naira(d.financial.platformRevenue), note: 'Commission plus delivery contribution' },
@@ -81,8 +98,8 @@ const sections = computed<Array<{ title: string; rows: Row[] }>>(() => {
     <ion-content :fullscreen="true">
       <ion-refresher slot="fixed" @ionRefresh="refresher"><ion-refresher-content /></ion-refresher>
       <main class="screen root">
-        <h1 class="title">Pilot numbers</h1>
-        <p v-if="k" class="lede">Updated {{ when(k.generatedAt) }}. These come straight from completed orders, not estimates.</p>
+        <h1 class="title">Platform numbers</h1>
+        <p v-if="k" class="lede">Updated {{ when(k.generatedAt) }}. Straight from completed orders and trips, not estimates.</p>
 
         <div v-if="loading" class="skeleton" style="height: 260px; margin-top: 20px" role="status" aria-label="Loading"></div>
         <div v-else-if="error" class="notice bad" role="alert" style="margin-top: 20px">
@@ -103,7 +120,7 @@ const sections = computed<Array<{ title: string; rows: Row[] }>>(() => {
             </dl>
           </section>
           <p class="notice" style="margin-top: 28px">
-            Demo data is fictional sample activity for course presentation. Replace it with real pilot results before drawing any conclusion about demand or unit economics.
+            Demo data is fictional sample activity. Real activity appears here as people use ORBIT.
           </p>
         </template>
       </main>

@@ -9,10 +9,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../api/endpoints';
 import type { OrderView, PaymentIntent } from '../../api/types';
 import ShopSign from '../../components/ShopSign.vue';
-import { naira, plural } from '../../lib/format';
+import { money, plural } from '../../lib/format';
 import { confirmAction, errorMessage, showError, success, toast } from '../../lib/ui';
 import { useAppConfig } from '../../stores/appConfig';
 import { useCheckout } from '../../stores/checkout';
+import { useAppConfig as useCfg } from '../../stores/appConfig';
+const naira = (v: number) => money(v, useCfg().currency);
 
 const route = useRoute();
 const router = useRouter();

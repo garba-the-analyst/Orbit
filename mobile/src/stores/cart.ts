@@ -10,7 +10,7 @@ interface Line {
 }
 
 interface Saved {
-  shop: Pick<Shop, 'id' | 'name' | 'color' | 'isOpen' | 'prepMinutes' | 'offersDelivery' | 'deliveryFee' | 'address'> | null;
+  shop: (Pick<Shop, 'id' | 'name' | 'color' | 'isOpen' | 'prepMinutes' | 'offersDelivery' | 'deliveryFee' | 'address'> & { currency?: string }) | null;
   lines: Line[];
 }
 

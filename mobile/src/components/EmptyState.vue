@@ -5,9 +5,9 @@ defineProps<{ title: string; text?: string }>();
 
 <template>
   <div class="empty">
-    <svg viewBox="0 0 64 64" width="56" height="56" aria-hidden="true">
-      <circle cx="32" cy="32" r="22" fill="none" stroke="#c9cde0" stroke-width="5" stroke-dasharray="3 9" stroke-linecap="round" />
-      <circle cx="47.6" cy="16.4" r="6" fill="#ffc400" stroke="#161a52" stroke-width="2.5" />
+    <svg viewBox="0 0 64 64" width="56" height="56" aria-hidden="true" style="color: var(--slate-faint)">
+      <circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="3 9" stroke-linecap="round" />
+      <circle cx="47.6" cy="16.4" r="6" fill="#ffc400" stroke="currentColor" stroke-width="2.5" style="color: var(--ink)" />
     </svg>
     <h3>{{ title }}</h3>
     <p v-if="text">{{ text }}</p>

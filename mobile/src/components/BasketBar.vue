@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** A bar pinned to the bottom of shopping screens that shows the basket total and opens it. */
 import { useRouter } from 'vue-router';
-import { naira, plural } from '../lib/format';
+import { money, plural } from '../lib/format';
 import { useCart } from '../stores/cart';
 
 defineProps<{ aboveTabs?: boolean }>();
@@ -13,7 +13,7 @@ const router = useRouter();
   <div v-if="!cart.isEmpty" class="bar" :class="{ above: aboveTabs }">
     <button class="btn btn-ink block go" @click="router.push('/c/basket')">
       <span>View basket · {{ plural(cart.itemCount, 'item') }}</span>
-      <span class="money">{{ naira(cart.subtotal) }}</span>
+      <span class="money">{{ money(cart.subtotal, cart.shop?.currency) }}</span>
     </button>
   </div>
 </template>
@@ -26,7 +26,7 @@ const router = useRouter();
   bottom: 0;
   z-index: 10;
   padding: 12px var(--gutter) calc(12px + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, var(--paper) 70%, rgba(244, 245, 249, 0));
+  background: linear-gradient(to top, var(--paper) 70%, transparent);
   max-width: 480px;
   margin: 0 auto;
 }
@@ -36,6 +36,6 @@ const router = useRouter();
 }
 .go {
   justify-content: space-between;
-  box-shadow: 0 8px 24px rgba(22, 26, 82, 0.22);
+  box-shadow: var(--shadow-lg);
 }
 </style>
