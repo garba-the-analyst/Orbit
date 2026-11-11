@@ -38,8 +38,12 @@ primary_region = "fra" # Frankfurt, next to the Neon project (aws-eu-central-1)
 [[services]]
   internal_port = 4000
   protocol = "tcp"
+  [services.ports]
+    handlers = ["http"]
+    port = 4000
 
 [checks.http]
+  type = "http"
   http = "/api/health"
   interval = "15s"
   timeout = "5s"
