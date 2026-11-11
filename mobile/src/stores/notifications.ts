@@ -8,14 +8,14 @@ import { useLive } from '../api/socket';
 export const useNotifications = defineStore('notifications', () => {
   const unread = ref(0);
   const items = ref<NotificationView[]>([]);
-  const total = ref(0);
+  const hasMore = ref(false);
   const loading = ref(false);
   const banner = ref<NotificationView | null>(null);
   let bannerTimer: ReturnType<typeof setTimeout> | undefined;
 
   async function refreshCount() {
     try {
-      unread.value = (await api.notifications.unread()).count;
+      unread.value = (await api.notifications.unread()).unread;
     } catch {
       /* the bell just keeps its last number */
     }
@@ -24,9 +24,10 @@ export const useNotifications = defineStore('notifications', () => {
   async function load(reset = true) {
     loading.value = true;
     try {
-      const page = await api.notifications.list(30, reset ? 0 : items.value.length);
-      items.value = reset ? page.items : [...items.value, ...page.items];
-      total.value = page.total;
+      const before = reset ? undefined : items.value[items.value.length - 1]?.createdAt;
+      const page = await api.notifications.list(30, before);
+      items.value = reset ? page : [...items.value, ...page];
+      hasMore.value = page.length === 30;
     } finally {
       loading.value = false;
     }
@@ -42,7 +43,7 @@ export const useNotifications = defineStore('notifications', () => {
   async function clearAll() {
     await api.notifications.clear();
     items.value = [];
-    total.value = 0;
+    hasMore.value = false;
     unread.value = 0;
   }
 
@@ -55,8 +56,7 @@ export const useNotifications = defineStore('notifications', () => {
   async function onIncoming() {
     await refreshCount();
     try {
-      const page = await api.notifications.list(1, 0);
-      const n = page.items[0];
+      const n = (await api.notifications.list(1))[0];
       if (n && !n.read) {
         banner.value = n;
         clearTimeout(bannerTimer);
@@ -79,5 +79,5 @@ export const useNotifications = defineStore('notifications', () => {
     useLive(['notification.new'], onIncoming);
   }
 
-  return { unread, items, total, loading, banner, refreshCount, load, markRead, clearAll, dismissBanner, onIncoming, reset, listen };
+  return { unread, items, hasMore, loading, banner, refreshCount, load, markRead, clearAll, dismissBanner, onIncoming, reset, listen };
 });

@@ -78,7 +78,7 @@ export const api = {
     get<RouteResult>(`/geo/route${qs({ fromLat: from.lat, fromLng: from.lng, toLat: to.lat, toLng: to.lng, vehicle })}`),
   searchPlaces: (q: string, near?: { lat: number; lng: number }) =>
     get<{ online: boolean; results: PlaceResult[] }>(`/geo/search${qs({ q, lat: near?.lat, lng: near?.lng })}`),
-  reverse: (p: { lat: number; lng: number }) => get<{ address: string | null }>(`/geo/reverse${qs(p)}`),
+  reverse: (p: { lat: number; lng: number }) => get<{ address: string | null }>(`/geo/reverse${qs({ lat: p.lat, lng: p.lng })}`),
   places: () => get<SavedPlace[]>('/places'),
   savePlace: (body: { label: string; address: string; lat: number; lng: number }) => post<SavedPlace>('/places', body),
   deletePlace: (id: string) => del<{ ok: true }>(`/places/${id}`),
@@ -178,8 +178,8 @@ export const api = {
   },
 
   notifications: {
-    list: (limit = 40, offset = 0) => getPage<NotificationView>(`/notifications${qs({ limit, offset })}`),
-    unread: () => get<{ count: number }>('/notifications/unread-count'),
+    list: (limit = 40, before?: string) => get<NotificationView[]>(`/notifications${qs({ limit, before })}`),
+    unread: () => get<{ unread: number }>('/notifications/unread-count'),
     read: (ids?: string[]) => post<{ ok: true }>('/notifications/read', ids ? { ids } : {}),
     clear: () => del<{ ok: true }>('/notifications'),
   },

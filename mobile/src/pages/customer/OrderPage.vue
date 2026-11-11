@@ -3,7 +3,9 @@ import { IonBackButton, IonButtons, IonContent, IonHeader, IonPage, IonRefresher
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../api/endpoints';
-import { useLive } from '../../api/socket';
+import { onCourierMoved, useLive } from '../../api/socket';
+import MapView, { type MapMarker } from '../../components/MapView.vue';
+import { useAppConfig } from '../../stores/appConfig';
 import type { OrderView } from '../../api/types';
 import OrbitTracker from '../../components/OrbitTracker.vue';
 import PinStub from '../../components/PinStub.vue';
@@ -25,6 +27,37 @@ let clockTimer: ReturnType<typeof setInterval>;
 onMounted(() => (clockTimer = setInterval(() => (now.value = Date.now()), 30_000)));
 onBeforeUnmount(() => clearInterval(clockTimer));
 
+const cfg = useAppConfig();
+const courierPos = ref<{ lat: number; lng: number; heading: number | null } | null>(null);
+let offMove: (() => void) | undefined;
+onMounted(() => {
+  offMove = onCourierMoved((p) => {
+    if (p.orderId === orderId.value) courierPos.value = { lat: p.lat, lng: p.lng, heading: p.heading };
+  });
+});
+onBeforeUnmount(() => offMove?.());
+
+/** The map shows once the order is on its way: shop, drop-off and the courier moving live. */
+const showMap = computed(() => !!order.value && order.value.status === 'ON_THE_WAY' && order.value.fulfilment !== 'PICKUP' && order.value.dropoff?.lat != null);
+const markers = computed<MapMarker[]>(() => {
+  const o = order.value;
+  if (!o) return [];
+  const m: MapMarker[] = [];
+  if (o.shop.lat != null && o.shop.lng != null) m.push({ id: 'shop', kind: 'shop', lat: o.shop.lat, lng: o.shop.lng, label: o.shop.name });
+  if (o.dropoff?.lat != null && o.dropoff.lng != null) m.push({ id: 'drop', kind: 'drop', lat: o.dropoff.lat, lng: o.dropoff.lng, label: 'You' });
+  if (courierPos.value) m.push({ id: 'courier', kind: 'driver', ...courierPos.value, vehicle: o.courier?.vehicle ?? undefined });
+  return m;
+});
+
+async function loadTracking() {
+  try {
+    const t = await api.orderTracking(orderId.value);
+    if (t.courier) courierPos.value = { lat: t.courier.lat, lng: t.courier.lng, heading: t.courier.heading };
+  } catch {
+    /* the live signal fills it in */
+  }
+}
+
 const orderId = computed(() => route.params.id as string);
 
 async function load() {
@@ -32,6 +65,7 @@ async function load() {
   error.value = '';
   try {
     order.value = await api.order(orderId.value);
+    if (order.value.status === 'ON_THE_WAY') loadTracking();
   } catch (e) {
     error.value = errorMessage(e);
   } finally {
@@ -159,6 +193,7 @@ async function rate() {
         <template v-else-if="order">
           <section class="hero">
             <OrbitTracker :count="stops.length" :index="index" :cancelled="order.status === 'CANCELLED'" :title="trackerTitle(order)" :sub="sub" />
+            <div v-if="showMap" class="omap"><MapView :center="{ lat: order.dropoff!.lat!, lng: order.dropoff!.lng! }" :markers="markers" fit :tile-url="cfg.config.map.tileUrl" :attribution="cfg.config.map.attribution" /></div>
             <p class="waybill xsmall muted">
               Waybill <span class="strong num">{{ order.waybillNo }}</span> · {{ FULFILMENT_LABEL[order.fulfilment] }}
             </p>
@@ -244,6 +279,13 @@ async function rate() {
 </template>
 
 <style scoped>
+.omap {
+  height: 220px;
+  margin-top: 16px;
+  border-radius: 18px;
+  overflow: hidden;
+  position: relative;
+}
 main > * + * {
   margin-top: 24px;
 }

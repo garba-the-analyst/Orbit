@@ -63,7 +63,7 @@ async function open(x: NotificationView) {
           </li>
         </ul>
         <button v-if="n.items.length" class="btn btn-line block" style="margin-top: 20px" type="button" @click="n.clearAll()">Clear all</button>
-        <button v-if="n.items.length < n.total" class="btn btn-quiet block" style="margin-top: 8px" type="button" @click="n.load(false)">Load older</button>
+        <button v-if="n.hasMore" class="btn btn-quiet block" style="margin-top: 8px" type="button" @click="n.load(false)">Load older</button>
       </main>
     </ion-content>
   </ion-page>

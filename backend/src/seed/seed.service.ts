@@ -35,6 +35,16 @@ interface SeedShop {
   products: Array<[name: string, description: string, price: number, stock: number]>;
 }
 
+/** Demo shops are spread across Nigeria so distance, city filters and nationwide browsing can be shown. */
+const LOCATIONS = [
+  { city: 'Abuja', state: 'FCT', lat: 9.0579, lng: 7.4951, address: '14 Adetokunbo Ademola Crescent, Wuse 2' },
+  { city: 'Lagos', state: 'Lagos', lat: 6.4281, lng: 3.4219, address: '22 Adeola Odeku Street, Victoria Island' },
+  { city: 'Kano', state: 'Kano', lat: 12.0022, lng: 8.5920, address: '5 Ibrahim Taiwo Road, Nassarawa' },
+  { city: 'Port Harcourt', state: 'Rivers', lat: 4.8156, lng: 7.0498, address: '31 Aba Road, GRA Phase 2' },
+  { city: 'Minna', state: 'Niger', lat: 9.6139, lng: 6.5569, address: 'Shop 8, Bosso Road' },
+  { city: 'Ibadan', state: 'Oyo', lat: 7.3775, lng: 3.9470, address: '9 Ring Road, Challenge' },
+];
+
 const SHOPS: SeedShop[] = [
   {
     owner: { name: 'Nkechi Okafor', email: 'nkechi@orbit.demo', phone: '08031230001' },
@@ -178,7 +188,7 @@ export class SeedService {
         this.users.create({ ...base, ...entry.owner, role: Role.MERCHANT }),
       );
       const shop = await this.shops.save(
-        this.shops.create({ ...entry.shop, ownerId: owner.id, status: ShopStatus.APPROVED, isOpen: true }),
+        this.shops.create({ ...entry.shop, ...LOCATIONS[SHOPS.indexOf(entry) % LOCATIONS.length], phone: entry.owner.phone, openingHours: 'Mon–Sat 8am–8pm', ownerId: owner.id, status: ShopStatus.APPROVED, isOpen: true }),
       );
       await this.products.save(
         entry.products.map(([name, description, price, stock]) =>
@@ -197,7 +207,7 @@ export class SeedService {
     await this.shops.save(
       this.shops.create({
         ownerId: pendingOwner.id, name: 'Maryam’s Bakery', category: 'Food',
-        address: 'Behind the Sports Complex', description: 'Fresh bread, buns and meat pies.',
+        address: '3 Zoo Road, Gwarinpa', city: 'Abuja', state: 'FCT', description: 'Fresh bread, buns and meat pies.',
         color: '#8A5A2B', status: ShopStatus.PENDING, isOpen: false,
       }),
     );

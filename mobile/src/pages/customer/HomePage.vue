@@ -39,7 +39,9 @@ async function load() {
   const [t, o, s] = await Promise.all([
     api.activeTrip().catch(() => null),
     api.orders().catch(() => [] as OrderView[]),
-    api.shops({ limit: 8, ...(fix ? { lat: fix.lat, lng: fix.lng, sort: 'distance' as const } : { sort: 'rating' as const }) }).catch(() => ({ items: [] as Shop[], total: 0 })),
+    api.shops({ limit: 8, ...(fix ? { lat: fix.lat, lng: fix.lng, sort: 'distance' as const } : { sort: 'rating' as const }) })
+      .then((r) => (r.items.length || !fix ? r : api.shops({ limit: 8, sort: 'rating' })))
+      .catch(() => ({ items: [] as Shop[], total: 0 })),
   ]);
   trip.value = t && !('none' in t) ? t : null;
   orders.value = o.filter(isActive);
@@ -112,7 +114,7 @@ const services = [
         </section>
 
         <section>
-          <div class="row between head"><h2>Shops near you</h2><button class="btn-text" type="button" @click="router.push('/c/shops')">See all</button></div>
+          <div class="row between head"><h2>Shops for you</h2><button class="btn-text" type="button" @click="router.push('/c/shops')">See all</button></div>
           <Skeleton v-if="loading" kind="cards" :count="2" />
           <div v-else class="hscroll">
             <button v-for="s in shops" :key="s.id" class="shopcard" type="button" @click="router.push(`/c/shop/${s.id}`)">
@@ -121,7 +123,7 @@ const services = [
               <strong>{{ s.name }}</strong>
               <small class="muted">{{ s.category }}<template v-if="s.distanceKm != null"> · {{ s.distanceKm.toFixed(1) }} km</template></small>
             </button>
-            <p v-if="!shops.length" class="muted small">No shops listed in your area yet.</p>
+            <p v-if="!shops.length" class="muted small">No shops listed yet.</p>
           </div>
         </section>
       </main>
