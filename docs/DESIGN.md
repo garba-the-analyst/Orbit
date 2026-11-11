@@ -5,7 +5,7 @@ How the app is meant to look and feel, why, and the rules that keep every screen
 
 ## Brief
 
-- **Product:** ORBIT, a campus marketplace where students order food, groceries, stationery and gadgets from verified local shops, with a choice at checkout of who delivers it.
+- **Product:** ORBIT, a nationwide marketplace, delivery and ride-hailing platform: people order from verified local shops, book rides, parcels and freight, and choose who delivers it.
 - **Audiences:** students on mid-range Android phones (customers); shop owners and kitchen staff working a counter (merchants); riders on the move, one-handed (riders); the ORBIT operations team (admin).
 - **Primary job:** get something from a nearby shop to you quickly, and make the handover trustworthy. For merchants and riders: clear the queue fast without mistakes.
 - **Vernacular we draw from:** Nigerian market signage, keke-napep yellow, waybills and dispatch slips, the delivery PIN, and the idea of an orbit: a short loop that always comes back to you.
@@ -82,3 +82,11 @@ Touch targets at least 48px, visible focus rings, 16px minimum input text (no iO
 ## Not in the MVP
 
 Dark mode, image uploads for products (shops use their sign colour and a monogram), localisation (English only, Nigerian conventions: ₦, +234 numbers, Lagos time).
+
+## v2 additions
+
+- **Theme:** every colour is a token in `mobile/src/theme/tokens.css`; dark mode follows the device and can be overridden in Account. Motion uses three duration tokens and respects reduced-motion.
+- **Maps:** OpenStreetMap tiles through Leaflet (dark-tinted in dark mode), Nominatim search and OSRM routing through the API, so no key is needed and the provider is swappable by environment variable.
+- **Loading:** an animated ORBIT mark covers boot (at least 1.5 s so it never flashes); screens show skeletons shaped like their content, not spinners.
+- **Walkthroughs:** driver.js tours per role, started once on first sign-in and replayable from Account.
+- **Vehicle language:** eight line icons (bicycle, motorbike, keke, car, van, truck, lorry, long-haul) and goods tags (food, perishable, fragile…) so handling needs are visible before accepting a job.

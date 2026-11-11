@@ -1,0 +1,30 @@
+# Builds an installable debug APK you can share with testers (Actions > Android APK > Run workflow > download the artifact).
+# Set the repository variable API_URL (Settings > Secrets and variables > Actions > Variables) to your https API, e.g. https://orbit-api.onrender.com/api
+name: Android APK
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: mobile } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: mobile/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.API_URL }}
+      - run: npx cap add android
+      - run: npx cap sync android
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+        working-directory: mobile/android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbit-debug-apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk

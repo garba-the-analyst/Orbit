@@ -1,0 +1,28 @@
+# One-click backend on Render (render.com): API + managed PostgreSQL. Blueprint > New > select this repo.
+# Fill the three "sync: false" values in the Render dashboard (they are never stored in git).
+databases:
+  - name: orbit-db
+    plan: free
+    databaseName: orbit
+    user: orbit
+services:
+  - type: web
+    name: orbit-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - { key: NODE_ENV, value: production }
+      - { key: DB_TYPE, value: postgres }
+      - { key: DATABASE_URL, fromDatabase: { name: orbit-db, property: connectionString } }
+      - { key: JWT_SECRET, generateValue: true }
+      - { key: PIN_SECRET, generateValue: true }
+      - { key: WEBHOOK_SECRET, generateValue: true }
+      - { key: PAYMENT_PROVIDER, value: mock }
+      - { key: ALLOW_MOCK_PAYMENTS, value: "true" }   # payments are TEST MODE until a real gateway is added
+      - { key: SEED_ON_BOOT, value: "false" }
+      - { key: CORS_ORIGINS, sync: false }            # e.g. https://orbit-app.netlify.app,https://localhost,capacitor://localhost
+      - { key: PUBLIC_BASE_URL, sync: false }         # this API's public https address, e.g. https://orbit-api.onrender.com
+      - { key: SUPERADMIN_EMAIL, sync: false }
+      - { key: SUPERADMIN_PASSWORD, sync: false }

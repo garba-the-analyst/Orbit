@@ -16,7 +16,7 @@ The proposal asks that technical progress "be independently demonstrated to cour
 
 | Requirement | Status | Where to see it |
 |---|---|---|
-| Merchant and product discovery | Done | Customer, "Shops near campus" |
+| Merchant and product discovery | Done | Customer, "Shops" (nationwide, filter by city or distance) |
 | Search and filter | Done | Search box finds shops **and products** ("jollof"); category tabs |
 | Product pages | Partial | Each shop page lists its products with prices and stock. There is no separate page per product. |
 | Cart | Done | "View basket" bar, quantity steppers |

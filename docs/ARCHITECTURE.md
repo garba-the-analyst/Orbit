@@ -165,3 +165,15 @@ These are real, and stating them is part of the design.
 | Prohibited goods | Keyword screen plus admin review | Image review and a reporting flow. |
 | Audit | Ledger is append-only in code | Database-level enforcement, plus a general audit log of admin actions (proposal section 13). |
 | Ride-hailing | **Not built** | Phase 5 in the proposal, after legal and licensing clearance. |
+
+## 13. v2: mobility, multi-country and pilot readiness
+
+- **Markets:** NG, GH, KE and ZA are configured (`ENABLED_MARKETS`); money is whole currency units and every record carries its currency.
+- **Trips:** `trips` module. Lifecycle SEARCHING, ACCEPTED, ARRIVED, IN_PROGRESS, COMPLETED, CANCELLED, NO_DRIVER. Dispatch offers the trip to nearby drivers in waves; the first to accept wins atomically. Light fleet (bicycle, motorbike, keke, car) and heavy fleet (van, truck, lorry, long-haul) are separate categories.
+- **Pricing:** base + distance + time, times surge. The quote locks the surge the customer saw; if it moves before booking the API answers 409 `PRICE_CHANGED` with the new fare. Commission is 10% on trips, 8% on marketplace items.
+- **Safety:** derived (HMAC) start and drop PINs with a 5-try lock, SOS alerts to admins, share-link tracking, cancellation fees and a late-cancel rate limit.
+- **Maps:** `geo` module proxies Nominatim and OSRM with caching, throttling and an estimate fallback when the routing server is down.
+- **Shop riders:** merchants invite their own riders; customers choose the shop's rider, an ORBIT rider, or pickup.
+- **Admins:** a superadmin is created from `SUPERADMIN_EMAIL`/`SUPERADMIN_PASSWORD` on first boot (never promoting an existing account) and can create up to six other admins with temporary passwords that must be changed at first sign-in.
+- **Pilot readiness:** password reset, consent records, data export and delete (`/me/export`, `/me/delete`), audit log, password-version in the JWT so changing a password signs out other devices, and a TypeORM migration for PostgreSQL (`backend/src/database/migrations`).
+- **Storage:** pictures are public and documents private. `STORAGE_DRIVER=local` for development, `s3` (any S3-compatible bucket) for hosting.

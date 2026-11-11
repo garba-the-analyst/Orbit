@@ -52,7 +52,7 @@ export function configureApp(app: INestApplication, opts: { docs?: boolean } = {
       new DocumentBuilder()
         .setTitle('ORBIT API')
         .setDescription(
-          'Local e-commerce, delivery and dispatch for campus communities. ' +
+          'Marketplace, delivery and ride-hailing across Nigeria and Africa. ' +
             'Sign in with POST /api/auth/login, then press Authorize and paste the token.',
         )
         .setVersion('1.0.0')

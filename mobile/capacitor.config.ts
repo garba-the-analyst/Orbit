@@ -9,7 +9,8 @@ const config: CapacitorConfig = {
   appId: 'ng.orbit.app',
   appName: 'ORBIT',
   webDir: 'dist',
-  server: { androidScheme: 'http', cleartext: true }, // allows the dev API over http; remove for production (use https)
+  // Release builds talk to the API over https only. Set CAP_CLEARTEXT=true for a local, http-only API on a LAN.
+  server: { androidScheme: 'https', cleartext: process.env.CAP_CLEARTEXT === 'true' },
   plugins: {
     Keyboard: { resize: 'body' },
     StatusBar: { style: 'DARK', backgroundColor: '#F4F5F9' },

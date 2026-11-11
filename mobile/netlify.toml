@@ -1,0 +1,17 @@
+# Static hosting for the web app. Set VITE_API_URL (Site settings > Environment) to your API, e.g. https://orbit-api.onrender.com/api
+[build]
+  base = "mobile"
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(self), camera=(self)"
