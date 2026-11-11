@@ -1,0 +1,46 @@
+app = "orbit-api"
+primary_region = "fra" # Frankfurt, next to the Neon project (aws-eu-central-1)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  DB_TYPE = "postgres"
+  DB_SSL = "true"
+  PORT = "4000"
+  PAYMENT_PROVIDER = "paystack"
+  ALLOW_MOCK_PAYMENTS = "false"
+  SEED_ON_BOOT = "false"
+  # Set these as secrets (never in git): fly secrets set <KEY>=<VALUE>
+  #   DATABASE_URL        Neon pooled connection string (from .env.local / Neon console)
+  #   JWT_SECRET          32+ random chars
+  #   PIN_SECRET          32+ random chars
+  #   WEBHOOK_SECRET      32+ random chars
+  #   SUPERADMIN_EMAIL    your admin email
+  #   SUPERADMIN_PASSWORD your admin password (change after first sign-in)
+  #   CORS_ORIGINS        https://<your-netlify-app>.netlify.app,https://localhost,capacitor://localhost
+  #   PUBLIC_BASE_URL     https://orbit-api.fly.dev
+  #   PAYSTACK_SECRET_KEY sk_test_...  (from Paystack dashboard)
+  #   PAYSTACK_PUBLIC_KEY  pk_test_...  (from Paystack dashboard)
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 100
+    hard_limit = 250
+
+[[services]]
+  internal_port = 4000
+  protocol = "tcp"
+
+[checks]
+  http = "/api/health"
+  interval = "15s"
+  timeout = "5s"
+  restart_limit = 0
