@@ -5,11 +5,12 @@ import { OrdersModule } from '../orders/orders.module';
 import { PaymentsController } from './payments.controller';
 import { Payment } from './payment.entity';
 import { PaymentsService } from './payments.service';
+import { PaystackAdapter } from './paystack.adapter';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Payment, Order]), OrdersModule],
   controllers: [PaymentsController],
-  providers: [PaymentsService],
+  providers: [PaymentsService, PaystackAdapter],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}

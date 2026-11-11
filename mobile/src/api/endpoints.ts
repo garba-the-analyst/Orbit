@@ -105,6 +105,14 @@ export const api = {
   /** Test mode only: plays the payment gateway. */
   simulatePayment: (reference: string, outcome: 'success' | 'failed') => post<{ ok: true }>(`/payments/${reference}/simulate`, { outcome }),
 
+  /** Paystack: initialize a transaction and get the authorization URL. */
+  initializePayment: (body: { reference: string; email: string; callbackUrl: string }) =>
+    post<{ authorizationUrl: string; accessCode: string; reference: string }>('/payments/initialize', body),
+
+  /** Paystack return page: server-rendered HTML that redirects back to the app. */
+  paymentReturnUrl: (reference: string, returnTo: string) =>
+    `/payments/return?reference=${encodeURIComponent(reference)}&returnTo=${encodeURIComponent(returnTo)}`,
+
   // ---- Trips (customer) --------------------------------------------------------------------------
   quote: (body: QuoteBody) => post<Quote>('/trips/quote', body),
   createTrip: (body: CreateTripBody) => post<TripView>('/trips', body),

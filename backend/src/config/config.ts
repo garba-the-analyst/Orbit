@@ -54,12 +54,21 @@ for (const code of enabledMarkets) {
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 const isProduction = nodeEnv === 'production';
-const paymentProvider = (process.env.PAYMENT_PROVIDER ?? 'mock') as 'mock';
+const paymentProvider = (process.env.PAYMENT_PROVIDER ?? 'mock') as 'mock' | 'paystack';
 
 if (isProduction && paymentProvider === 'mock' && process.env.ALLOW_MOCK_PAYMENTS !== 'true') {
   throw new Error(
     'PAYMENT_PROVIDER=mock is not allowed in production (set ALLOW_MOCK_PAYMENTS=true only for a supervised demo).',
   );
+}
+
+function paystackSecret(name: string): string {
+  const value = process.env[name];
+  if (value && value.length >= 8) return value;
+  if (isProduction && paymentProvider === 'paystack') {
+    throw new Error(`${name} must be set when PAYMENT_PROVIDER=paystack in production.`);
+  }
+  return value ?? '';
 }
 
 export const config = {
@@ -97,6 +106,13 @@ export const config = {
   },
 
   paymentProvider,
+
+  /** Paystack gateway (live when PAYMENT_PROVIDER=paystack; test mode mock otherwise). */
+  paystack: {
+    secretKey: paystackSecret('PAYSTACK_SECRET_KEY'),
+    publicKey: process.env.PAYSTACK_PUBLIC_KEY ?? '',
+    // Webhook verification uses the same secret key (Paystack HMAC-SHA512).
+  },
 
   /** The countries this deployment serves. Nigeria by default; see common/markets.ts to add more. */
   markets: { enabled: enabledMarkets },

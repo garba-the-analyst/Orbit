@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
- * Payment screen. In this MVP the gateway is simulated ("test mode"): the buttons below stand in for the
- * gateway's result and go through the same server path a real gateway webhook would. No real money moves.
+ * Payment screen.
+ * - mock: simulated gateway buttons (test mode, no real money moves).
+ * - paystack: real Paystack checkout, styled with ORBIT's design tokens.
  */
 import { IonContent, IonPage, onIonViewWillEnter } from '@ionic/vue';
 import { computed, ref } from 'vue';
@@ -14,12 +15,14 @@ import { confirmAction, errorMessage, showError, success, toast } from '../../li
 import { useAppConfig } from '../../stores/appConfig';
 import { useCheckout } from '../../stores/checkout';
 import { useAppConfig as useCfg } from '../../stores/appConfig';
+import { useAuth } from '../../stores/auth';
 const naira = (v: number) => money(v, useCfg().currency);
 
 const route = useRoute();
 const router = useRouter();
 const checkout = useCheckout();
 const cfg = useAppConfig();
+const auth = useAuth();
 
 const order = ref<OrderView | null>(null);
 const intent = ref<PaymentIntent | null>(null);
@@ -29,6 +32,8 @@ const failed = ref(false);
 const loadError = ref('');
 
 const orderId = computed(() => route.params.id as string);
+const isPaystack = computed(() => cfg.config.paymentProvider === 'paystack');
+const payerEmail = computed(() => auth.user?.email ?? '');
 
 async function load() {
   loading.value = true;
@@ -50,15 +55,21 @@ async function load() {
 }
 onIonViewWillEnter(load);
 
-async function pay() {
-  if (!intent.value) return;
+async function payWithPaystack() {
+  if (!intent.value || !order.value) return;
   busy.value = 'pay';
   try {
-    await api.simulatePayment(intent.value.reference, 'success');
-    checkout.drop(orderId.value);
-    success();
-    toast('Payment received. The shop has your order.');
-    await router.replace(`/c/order/${orderId.value}`);
+    const { authorizationUrl } = await api.initializePayment({
+      reference: intent.value.reference,
+      email: payerEmail.value || 'customer@orbit.local',
+      callbackUrl: api.paymentReturnUrl(
+        intent.value.reference,
+        `${window.location.origin}/c/order/${orderId.value}`,
+      ),
+    });
+    // Send the customer to Paystack's checkout. The webhook updates the order server-side;
+    // Paystack redirects back to the return page which sends them to their order screen.
+    window.location.href = authorizationUrl;
   } catch (e) {
     await showError(e);
   } finally {
@@ -90,17 +101,18 @@ async function cancel() {
     cancel: 'Keep order',
     destructive: true,
   });
-  if (!ok) return;
-  busy.value = 'cancel';
-  try {
-    await api.cancelOrder(orderId.value, 'Cancelled before payment');
-    checkout.drop(orderId.value);
-    toast('Order cancelled.');
-    await router.replace('/c/orders');
-  } catch (e) {
-    await showError(e);
-  } finally {
-    busy.value = null;
+  if (ok) {
+    busy.value = 'cancel';
+    try {
+      await api.cancelOrder(orderId.value, 'Cancelled before payment');
+      checkout.drop(orderId.value);
+      toast('Order cancelled.');
+      await router.replace('/c/orders');
+    } catch (e) {
+      await showError(e);
+    } finally {
+      busy.value = null;
+    }
   }
 }
 </script>
@@ -132,7 +144,10 @@ async function cancel() {
             <div class="xsmall muted">Pay within {{ cfg.config.pendingPaymentTtlMin }} minutes or the order is released.</div>
           </section>
 
-          <div v-if="cfg.config.paymentProvider === 'mock'" class="notice warn">
+          <div v-if="isPaystack" class="notice warn" style="margin-top: 12px">
+            <span class="strong">Secure payment via Paystack.</span> You will be redirected to Paystack to complete the payment.
+          </div>
+          <div v-if="!isPaystack && cfg.config.paymentProvider === 'mock'" class="notice warn">
             <span class="strong">Test mode.</span> No real money moves. The buttons below act as the payment gateway so you can show both results.
           </div>
           <div v-if="failed" class="notice bad" role="alert" style="margin-top: 12px">
@@ -140,10 +155,23 @@ async function cancel() {
           </div>
 
           <div class="stack" style="margin-top: 24px; --stack: 10px">
-            <button class="btn btn-primary block" :disabled="busy !== null" @click="pay">
+            <button
+              v-if="isPaystack"
+              class="btn btn-paystack block"
+              :disabled="busy !== null"
+              @click="payWithPaystack"
+            >
+              {{ busy === 'pay' ? 'Redirecting…' : `Pay ${naira(intent.amount)} with Paystack` }}
+            </button>
+            <button
+              v-else
+              class="btn btn-primary block"
+              :disabled="busy !== null"
+              @click="payWithPaystack"
+            >
               {{ busy === 'pay' ? 'Paying…' : `Pay ${naira(intent.amount)}` }}
             </button>
-            <button v-if="cfg.config.paymentProvider === 'mock'" class="btn btn-line block" :disabled="busy !== null" @click="simulateFailure">
+            <button v-if="!isPaystack && cfg.config.paymentProvider === 'mock'" class="btn btn-line block" :disabled="busy !== null" @click="simulateFailure">
               {{ busy === 'fail' ? 'Working…' : 'Simulate a failed payment' }}
             </button>
             <button class="btn btn-text block" :disabled="busy !== null" @click="cancel">Cancel order</button>
@@ -167,5 +195,12 @@ async function cancel() {
   line-height: 1.1;
   margin: 4px 0 8px;
   letter-spacing: -0.03em;
+}
+.btn-paystack {
+  --background: var(--signal);
+  --background-activated: var(--signal-press);
+  --color: var(--on-signal);
+  --border-radius: var(--r-button);
+  font-weight: 600;
 }
 </style>

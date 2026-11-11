@@ -24,6 +24,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { Request } from 'express';
 import { AuthUser } from '../common/auth.decorators';
 import { OrderStatus } from '../common/enums';
 import { signatureMatches } from '../common/pin.util';
@@ -31,6 +32,7 @@ import { config } from '../config/config';
 import { Order } from '../orders/order.entity';
 import { OrdersService } from '../orders/orders.service';
 import { Payment } from './payment.entity';
+import { PaystackAdapter } from './paystack.adapter';
 
 export interface GatewayEvent {
   event: 'charge.success' | 'charge.failed';
@@ -45,17 +47,34 @@ export class PaymentsService {
     @InjectRepository(Payment) private readonly payments: Repository<Payment>,
     @InjectRepository(Order) private readonly orders: Repository<Order>,
     private readonly ordersService: OrdersService,
+    private readonly paystack: PaystackAdapter,
   ) {}
 
   /** Verifies the signature of a raw webhook body and applies the event. */
   async handleWebhook(rawBody: Buffer | undefined, signature: string | undefined): Promise<{ ok: true }> {
-    if (!rawBody || !signatureMatches(rawBody, signature, config.webhookSecret)) {
+    // Paystack sends x-paystack-signature (HMAC-SHA512); the mock/dev path uses x-orbit-signature (HMAC-SHA256).
+    let ok = false;
+    if (config.paymentProvider === 'paystack') {
+      ok = !!rawBody && this.paystack.verifyWebhookSignature(rawBody, signature);
+    } else {
+      ok = !!rawBody && signatureMatches(rawBody, signature, config.webhookSecret);
+    }
+    if (!ok) {
       throw new UnauthorizedException('Invalid webhook signature.');
     }
     let evt: GatewayEvent;
     try {
-      evt = JSON.parse(rawBody.toString('utf8'));
-    } catch {
+      const parsed = JSON.parse(rawBody!.toString('utf8'));
+      // Paystack sends the event at top level; ORBIT's mock sends { event, data } directly.
+      if (config.paymentProvider === 'paystack' && parsed?.event && parsed?.data) {
+        const mapped = this.paystack.mapWebhookEvent(parsed);
+        if (!mapped) throw new BadRequestException('Unsupported payment event.');
+        evt = mapped;
+      } else {
+        evt = parsed;
+      }
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
       throw new BadRequestException('Webhook body is not valid JSON.');
     }
     await this.handleEvent(evt);
@@ -78,6 +97,50 @@ export class PaymentsService {
       data: { reference, amount: payment.amount },
     });
     return { ok: true };
+  }
+
+  /**
+   * Initializes a real Paystack transaction for an order. Returns the authorization URL the app
+   * sends the customer to (Paystack checkout inline or redirect). Only used when
+   * PAYMENT_PROVIDER=paystack.
+   */
+  async initializePayment({
+    userId,
+    reference,
+    customerEmail,
+    callbackUrl,
+  }: {
+    userId: string;
+    reference: string;
+    customerEmail: string;
+    callbackUrl: string;
+  }): Promise<{ authorizationUrl: string; accessCode: string; reference: string }> {
+    if (config.paymentProvider !== 'paystack') {
+      throw new ForbiddenException('Paystack is not configured.');
+    }
+    const payment = await this.payments.findOne({ where: { reference } });
+    if (!payment) throw new NotFoundException('Payment not found.');
+    const order = await this.orders.findOne({ where: { id: payment.orderId } });
+    if (!order || order.customerId !== userId) throw new NotFoundException('Payment not found.');
+    return this.paystack.initializeTransaction({ email: customerEmail, amount: payment.amount, reference, callbackUrl });
+  }
+
+  /**
+   * Verifies a payment's status for the return/callback page. Checks our ledger first (the webhook
+   * may already have applied the result), then falls back to a direct Paystack verification.
+   */
+  async verifyReturn(reference: string): Promise<'success' | 'failed' | 'pending'> {
+    const payment = await this.payments.findOne({ where: { reference } });
+    if (payment?.status === 'SUCCESS') return 'success';
+    if (payment?.status === 'FAILED') return 'failed';
+
+    // Fall back to Paystack directly if the webhook hasn't arrived yet.
+    try {
+      const result = await this.paystack.verifyTransaction(reference);
+      return result.status === 'success' ? 'success' : 'failed';
+    } catch {
+      return 'pending';
+    }
   }
 
   /** The single place a gateway result enters the system. */
