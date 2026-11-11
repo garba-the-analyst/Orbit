@@ -2,7 +2,7 @@ import { defineConfig } from "@neon/config/v1";
 
 export default defineConfig({
   // Declare your Neon services here
-  auth: true,
+  // Neon Auth is intentionally NOT enabled: ORBIT keeps its own JWT auth (roles, PINs, superadmin).
   buckets: {
     // "private" is the default; use "public_read" for anonymous reads
     assets: { access: "private" },
