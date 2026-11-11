@@ -1,21 +1,19 @@
-# One-click backend on Render (render.com): API + managed PostgreSQL. Blueprint > New > select this repo.
-# Fill the three "sync: false" values in the Render dashboard (they are never stored in git).
-databases:
-  - name: orbit-db
-    plan: free
-    databaseName: orbit
-    user: orbit
+# Backend on Render (render.com) with the database on Neon. Blueprint > New > select this repo.
+# Fill every "sync: false" value in the Render dashboard (they are never stored in git).
+# Pick the Frankfurt region to sit next to the Neon project (AWS eu-central-1).
 services:
   - type: web
     name: orbit-api
     runtime: docker
+    region: frankfurt
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /api/health
     envVars:
       - { key: NODE_ENV, value: production }
       - { key: DB_TYPE, value: postgres }
-      - { key: DATABASE_URL, fromDatabase: { name: orbit-db, property: connectionString } }
+      - { key: DATABASE_URL, sync: false }            # Neon connection string (the pooled one), from the Neon console
+      - { key: DB_SSL, value: "true" }
       - { key: JWT_SECRET, generateValue: true }
       - { key: PIN_SECRET, generateValue: true }
       - { key: WEBHOOK_SECRET, generateValue: true }

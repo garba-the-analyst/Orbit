@@ -10,3 +10,4 @@ coverage
 mobile/e2e/shots
 mobile/android
 mobile/ios
+.neon

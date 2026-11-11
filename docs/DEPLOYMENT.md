@@ -23,6 +23,16 @@ Hosting disks are wiped on redeploy. Create an S3-compatible bucket pair (Cloudf
 
 Set `SMTP_URL` (for example a Brevo or Resend SMTP URL) and `MAIL_FROM`. Without it, reset links are only logged.
 
+### Neon setup used for ORBIT (project `tiny-tree-53680689`, Frankfurt)
+
+On your own computer, in the repo root:
+```bash
+npm i -g neon@latest
+neon login          # finish the sign-in in the browser
+neon deploy         # provisions what neon.ts declares and writes .env.local (git-ignored)
+```
+Then in the Neon console open the `production` branch > **Connect** > copy the **pooled** connection string, and paste it into Render as `DATABASE_URL`. Never commit it. ORBIT keeps its own sign-in (JWT, roles, PINs), so Neon Auth is not used; and pictures go through the app's S3 storage driver (see below).
+
 ### Which database? (recommended for remote testing)
 
 One hosted PostgreSQL that the API connects to; testers never touch it. Pick one:
