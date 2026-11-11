@@ -5,6 +5,7 @@ services:
   - type: web
     name: orbit-api
     runtime: docker
+    plan: free                                       # without this line Render defaults to a PAID plan
     region: frankfurt
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
