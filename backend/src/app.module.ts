@@ -53,6 +53,8 @@ function databaseOptions() {
     return {
       type: 'postgres' as const,
       url: config.db.url,
+      // Hosted databases (Neon, Supabase, Render's external address) require TLS: set DB_SSL=true.
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       entities,
       // Development and tests build tables from the entities. Production uses the migration files in database/migrations.
       synchronize: (process.env.DB_SYNC ?? (config.isProduction ? 'false' : 'true')) === 'true',

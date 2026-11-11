@@ -23,6 +23,20 @@ Hosting disks are wiped on redeploy. Create an S3-compatible bucket pair (Cloudf
 
 Set `SMTP_URL` (for example a Brevo or Resend SMTP URL) and `MAIL_FROM`. Without it, reset links are only logged.
 
+### Which database? (recommended for remote testing)
+
+One hosted PostgreSQL that the API connects to; testers never touch it. Pick one:
+
+| Option | Free tier behaviour | Use when |
+|---|---|---|
+| **Neon** (recommended) | Stays available, scales to zero when idle | Pilot with course mates |
+| **Supabase** | Free project pauses after about 7 idle days | You also want its dashboard and storage |
+| **Render Postgres** | Free database expires after about 30 days | Quick demo only |
+
+Steps: create the database, copy its connection string, then set on the API host `DB_TYPE=postgres`, `DATABASE_URL=<string>`, `DB_SSL=true` (and remove the `fromDatabase` line in `render.yaml` if you use Neon or Supabase). Migrations create all tables on first boot. Do not set `SEED_ON_BOOT=true` in production, so no fake shops mix with real ones.
+
+Keep a backup habit: Neon and Supabase offer point-in-time restore on paid plans; on free plans run `pg_dump` weekly. Never use SQLite for remote testing: its file lives on the API's disk and is wiped on redeploy.
+
 ## 2. Web app (Netlify)
 
 New site from Git, base directory `mobile` (`mobile/netlify.toml` has the rest). Set `VITE_API_URL=https://<api>/api` and deploy. Share the link: testers can also use "Add to home screen".
