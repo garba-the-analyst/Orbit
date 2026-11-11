@@ -1,5 +1,8 @@
-# Builds an installable debug APK you can share with testers (Actions > Android APK > Run workflow > download the artifact).
-# Set the repository variable API_URL (Settings > Secrets and variables > Actions > Variables) to your https API, e.g. https://orbit-api.onrender.com/api
+# Builds an installable Android APK for testers (Actions > Android APK > Run workflow > download the artifact).
+# Set the repository variable API_URL to your https API, e.g. https://orbit-api.onrender.com/api
+# For a signed release, add repository secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+# ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD. Without them a debug APK is built.
+# Tag pushes (v*) produce a release build; workflow_dispatch can build either.
 name: Android APK
 on:
   workflow_dispatch:
@@ -21,10 +24,42 @@ jobs:
           VITE_API_URL: ${{ vars.API_URL }}
       - run: npx cap add android
       - run: npx cap sync android
-      - name: Build debug APK
-        run: ./gradlew assembleDebug
+      - name: Build release or debug APK
+        id: build
+        run: |
+          set -e
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > /tmp/orbit-keystore.jks
+            echo "Building signed release APK"
+            ./gradlew assembleRelease
+            # Locate apksigner in the Android SDK Gradle just downloaded
+            SDK_DIR=$(grep '^sdk.dir=' local.properties | cut -d= -f2)
+            APKSIGNER=$(ls "$SDK_DIR"/build-tools/*/apksigner 2>/dev/null | head -1)
+            if [ -z "$APKSIGNER" ]; then
+              echo "apksigner not found; shipping unsigned release APK"
+              cp app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/app-release.apk
+            else
+              "$APKSIGNER" sign --ks /tmp/orbit-keystore.jks \
+                --ks-key-alias "${{ secrets.ANDROID_KEY_ALIAS }}" \
+                --ks-pass pass:"${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+                --key-pass pass:"${{ secrets.ANDROID_KEY_PASSWORD }}" \
+                --out app/build/outputs/apk/release/app-release.apk \
+                app/build/outputs/apk/release/app-release-unsigned.apk
+              echo "Release APK signed."
+            fi
+            echo "artifact=app/build/outputs/apk/release/app-release.apk" >> $GITHUB_OUTPUT
+            echo "name=orbit-release-apk" >> $GITHUB_OUTPUT
+          else
+            echo "No keystore secrets provided, building debug APK"
+            ./gradlew assembleDebug
+            echo "artifact=app/build/outputs/apk/debug/app-debug.apk" >> $GITHUB_OUTPUT
+            echo "name=orbit-debug-apk" >> $GITHUB_OUTPUT
+          fi
         working-directory: mobile/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       - uses: actions/upload-artifact@v4
         with:
-          name: orbit-debug-apk
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: ${{ steps.build.outputs.name }}
+          path: mobile/android/${{ steps.build.outputs.artifact }}
