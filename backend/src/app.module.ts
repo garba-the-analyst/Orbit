@@ -35,6 +35,7 @@ import { Shop } from './shops/shop.entity';
 import { AccountModule } from './account/account.module';
 import { AuditInterceptor } from './audit/audit.service';
 import { AuditModule } from './audit/audit.module';
+import { ComplaintsModule } from './complaints/complaint.module';
 import { LegalModule } from './legal/legal.controller';
 import { MailModule } from './mail/mail.service';
 import { TripsModule } from './trips/trips.module';
@@ -107,6 +108,7 @@ function databaseOptions() {
     LegalModule,
     AuditModule,
     AccountModule,
+    ComplaintsModule,
   ],
   controllers: [AppController],
   providers: [
