@@ -67,6 +67,7 @@ export class AuthService {
           email: dto.email,
           phone: dto.phone,
           name: dto.name,
+          username: dto.username ?? null,
           passwordHash,
           role: dto.role,
           status: needsVerification ? AccountStatus.PENDING : AccountStatus.ACTIVE,

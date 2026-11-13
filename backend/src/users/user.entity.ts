@@ -12,6 +12,11 @@ export class User {
   @Column({ type: 'varchar', length: 254 })
   email: string;
 
+  /** Public handle chosen by the user (letters, numbers, underscores only). */
+  @Index({ unique: true, where: '"username" IS NOT NULL' })
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  username: string | null;
+
   @Column({ type: 'varchar', length: 30 })
   phone: string;
 

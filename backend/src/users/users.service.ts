@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Shop } from '../shops/shop.entity';
@@ -11,6 +11,7 @@ export interface PublicUser {
   name: string;
   email: string;
   phone: string;
+  username: string | null;
   role: string;
   status: string;
   vehicle: string | null;
@@ -47,6 +48,7 @@ export class UsersService {
       name: user.name,
       email: user.email,
       phone: user.phone,
+      username: user.username,
       role: user.role,
       status: user.status,
       vehicle: user.vehicle,
@@ -62,12 +64,17 @@ export class UsersService {
 
   async updateProfile(
     userId: string,
-    patch: { name?: string; phone?: string; avatarUrl?: string | null },
+    patch: { name?: string; phone?: string; username?: string; avatarUrl?: string | null },
   ): Promise<PublicUser> {
     const user = await this.getOrFail(userId);
     if (patch.avatarUrl) await this.uploads.assertOwned(userId, [patch.avatarUrl]);
     if (patch.name !== undefined) user.name = patch.name;
     if (patch.phone !== undefined) user.phone = patch.phone;
+    if (patch.username !== undefined) {
+      const taken = await this.users.findOne({ where: { username: patch.username } });
+      if (taken && taken.id !== userId) throw new ConflictException('That username is already taken.');
+      user.username = patch.username || null;
+    }
     if (patch.avatarUrl !== undefined) user.avatarUrl = patch.avatarUrl || null;
     await this.users.save(user);
     return this.toPublic(user);

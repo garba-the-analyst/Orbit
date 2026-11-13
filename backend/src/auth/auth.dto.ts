@@ -53,6 +53,15 @@ export class RegisterDto {
   @MaxLength(254)
   email: string;
 
+  /** Public handle chosen by the user. */
+  @ApiPropertyOptional({ example: 'garba_the_analyst' })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @Length(3, 30)
+  @Matches(/^[a-zA-Z0-9_]+$/, { message: 'Username can only contain letters, numbers, and underscores.' })
+  username?: string;
+
   @ApiProperty({ example: '08031234567' })
   @Transform(toE164)
   @IsAppPhone()
@@ -134,6 +143,15 @@ export class UpdateProfileDto {
   @Transform(toE164)
   @IsAppPhone()
   phone?: string;
+
+  /** Public handle chosen by the user. */
+  @ApiPropertyOptional({ example: 'garba_the_analyst' })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @Length(3, 30)
+  @Matches(/^[a-zA-Z0-9_]+$/, { message: 'Username can only contain letters, numbers, and underscores.' })
+  username?: string;
 
   @ApiPropertyOptional({ nullable: true, description: 'URL returned by POST /uploads?kind=avatar. Send null to remove it.' })
   @IsOptional()
