@@ -9,7 +9,7 @@ import { promptText, showError, toast } from '../lib/ui';
 
 const props = defineProps<{ documents: QueueDocument[]; vehicles?: VehicleView[] }>();
 const emit = defineEmits<{ (e: 'changed'): void }>();
-const KIND: Record<string, string> = { ID_CARD: 'ID card', DRIVER_LICENCE: 'Driver’s licence', VEHICLE_PAPERS: 'Vehicle papers', BUSINESS_REG: 'Business registration', OTHER: 'Other document' };
+const KIND: Record<string, string> = { ID_CARD: 'ID card', DRIVER_LICENCE: 'Driver’s licence', VEHICLE_PAPERS: 'Vehicle papers', BUSINESS_REG: 'Business reg.', OTHER: 'Other document' };
 const busy = ref('');
 
 async function view(id: string) {

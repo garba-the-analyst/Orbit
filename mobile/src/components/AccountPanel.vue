@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEMO } from '../api/demo/flag';
 /**
  * Profile, appearance, privacy and sign out. Used as a full screen (Account tab) and embedded in other screens
  * (merchant "My shop"). Includes the things a real pilot needs: change picture, dark mode, replay the tour,
@@ -120,6 +121,11 @@ async function deleteAccount() {
   }
 }
 
+async function resetDemo() {
+  const ok = await confirmAction({ title: 'Reset the demo?', message: 'All orders, trips and changes you made are erased and the sample data is restored.', confirm: 'Reset', cancel: 'Keep it', destructive: true });
+  if (ok) (await import('../api/demo/server')).demoReset();
+}
+
 async function signOut() {
   const ok = await confirmAction({ title: 'Sign out of ORBIT?', message: !cart.isEmpty ? 'Your basket stays on this phone.' : undefined, confirm: 'Sign out', cancel: 'Stay signed in' });
   if (!ok) return;
@@ -188,6 +194,10 @@ async function signOut() {
       </div>
     </template>
 
+    <section v-if="DEMO" class="notice" style="margin-top: 24px">
+      <strong>Demo mode.</strong> Everything here is sample data stored on this device. Other people in each story (shops, drivers, couriers) are simulated. Reset to start again with fresh sample data.
+      <button class="btn btn-line small-btn" style="margin-top: 10px" type="button" @click="resetDemo">Reset demo data</button>
+    </section>
     <button class="btn btn-line block" style="margin-top: 28px" @click="signOut">Sign out</button>
   </section>
 </template>
