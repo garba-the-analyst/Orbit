@@ -11,6 +11,8 @@
 import { io, Socket } from 'socket.io-client';
 import { onBeforeUnmount, onMounted } from 'vue';
 import { SOCKET_URL } from './client';
+import { DEMO } from './demo/flag';
+import { bus } from './demo/bus';
 
 export type LiveEvent =
   | 'order.updated'
@@ -47,6 +49,7 @@ const courierHandlers = new Set<(p: CourierMoved) => void>();
 
 export function connectSocket(token: string) {
   disconnectSocket();
+  if (DEMO) return; // the demo backend signals through `bus` instead of a socket
   const s = io(SOCKET_URL, {
     auth: { token },
     transports: ['websocket', 'polling'],
@@ -95,4 +98,10 @@ export function useLive(events: LiveEvent[], handler: () => void) {
     stops.forEach((stop) => stop());
     stops = [];
   });
+}
+
+// Demo mode: the fake backend's "realtime" signals reach screens through the same registries a socket would use.
+if (DEMO) {
+  bus.emit = (event: string) => registry.get(event as LiveEvent)?.forEach((fn) => fn());
+  bus.courier = (p) => courierHandlers.forEach((fn) => fn({ ...p, heading: p.heading ?? null }));
 }

@@ -6,6 +6,8 @@
  * - A 401 on an authenticated call clears the session (expired or suspended).
  */
 
+import { DEMO } from './demo/flag';
+
 const TOKEN_KEY = 'orbit.token';
 
 /** The API address. In development the API runs on the same machine as the dev server, on port 4000. */
@@ -64,6 +66,19 @@ function messageFrom(body: unknown, status: number): string {
 }
 
 async function send(method: string, path: string, body?: unknown, form?: FormData): Promise<Response> {
+  // Demo build: answer from the built-in fake backend instead of the network.
+  if (DEMO) {
+    const { demoSend } = await import('./demo/server');
+    const token = session.token;
+    const res = await demoSend(method, path, body, form);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      if (res.status === 401 && token) onUnauthorized();
+      throw new ApiError(res.status, messageFrom(data, res.status), data && typeof data === 'object' ? (data as Record<string, unknown>) : null);
+    }
+    return res;
+  }
+
   const controller = new AbortController();
   // Uploads over a slow mobile connection get longer than ordinary calls.
   const timer = setTimeout(() => controller.abort(), form ? 90_000 : 20_000);

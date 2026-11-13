@@ -27,6 +27,10 @@ ORBIT is one app for three everyday needs. People **buy from verified local shop
 - **Demo data is fictional.** Real activity only appears after people use the app.
 - **Native builds are produced by CI**, not in the development sandbox. See `docs/DEPLOYMENT.md`.
 
+## Try it with no server (demo mode)
+
+The app has a self-contained demo build with a built-in fake backend: every role and workflow works offline, and it can be hosted free on GitHub Pages. See `docs/DEMO.md`.
+
 ## Run it locally (five minutes)
 
 You need Node.js 20 or newer (tested on 22). SQLite is the default, so no database is needed.

@@ -6,6 +6,11 @@
 name: Android APK
 on:
   workflow_dispatch:
+    inputs:
+      demo:
+        description: 'Build the self-contained DEMO app (no server needed)'
+        type: boolean
+        default: true
   push:
     tags: ['v*']
 jobs:
@@ -22,6 +27,7 @@ jobs:
       - run: npm run build
         env:
           VITE_API_URL: ${{ vars.API_URL }}
+          VITE_DEMO: ${{ github.event_name == 'workflow_dispatch' && inputs.demo && 'true' || 'false' }}
       - run: npx cap add android
       - run: npx cap sync android
       - name: Build release or debug APK

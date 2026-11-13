@@ -87,7 +87,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ];
 
-const router = createRouter({ history: createWebHistory(), routes });
+const router = createRouter({ history: createWebHistory(import.meta.env.BASE_URL), routes });
 
 /**
  * Route guard:

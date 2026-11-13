@@ -55,6 +55,23 @@ async function load() {
 }
 onIonViewWillEnter(load);
 
+/** Test mode: plays the payment gateway so the whole flow can be exercised without real money. */
+async function pay() {
+  if (!intent.value) return;
+  busy.value = 'pay';
+  try {
+    await api.simulatePayment(intent.value.reference, 'success');
+    checkout.drop(orderId.value);
+    success();
+    toast('Payment received. The shop has your order.');
+    await router.replace(`/c/order/${orderId.value}`);
+  } catch (e) {
+    await showError(e);
+  } finally {
+    busy.value = null;
+  }
+}
+
 async function payWithPaystack() {
   if (!intent.value || !order.value) return;
   busy.value = 'pay';
@@ -167,7 +184,7 @@ async function cancel() {
               v-else
               class="btn btn-primary block"
               :disabled="busy !== null"
-              @click="payWithPaystack"
+              @click="pay"
             >
               {{ busy === 'pay' ? 'Paying…' : `Pay ${naira(intent.amount)}` }}
             </button>

@@ -9,6 +9,7 @@ import { useNotifications } from './stores/notifications';
 import { useDriver } from './stores/driver';
 import SplashScreen from './components/SplashScreen.vue';
 import StatusBanners from './components/StatusBanners.vue';
+import DemoBadge from './components/DemoBadge.vue';
 import InAppBanner from './components/InAppBanner.vue';
 
 const auth = useAuth();
@@ -62,6 +63,7 @@ useLive(['account.updated'], async () => {
   <ion-app>
     <ion-router-outlet />
     <StatusBanners />
+    <DemoBadge />
     <InAppBanner />
   </ion-app>
   <SplashScreen :done="boot.ready" :slow="slow" />
