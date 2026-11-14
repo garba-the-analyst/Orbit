@@ -22,7 +22,7 @@ async function load() {
   try {
     const { items: data, total } = await api.admin.complaints(tab.value);
     items.value = data;
-    if (tab.value === 'OPEN') badges.adminComplaints = data.length;
+    if (tab.value === 'OPEN') badges.adminComplaints = total;
   } catch (e) {
     error.value = errorMessage(e);
   } finally {

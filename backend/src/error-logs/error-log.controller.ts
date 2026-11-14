@@ -7,10 +7,12 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { AuthUser, CurrentUser, Public, Roles } from '../common/auth.decorators';
+import { Public, Roles } from '../common/auth.decorators';
 import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/auth.guards';
 import { ErrorLogsService } from './error-log.service';
@@ -21,6 +23,7 @@ import {
 } from './error-log.dto';
 
 @ApiTags('error-logs')
+@ApiBearerAuth()
 @Controller('error-logs')
 export class ErrorLogsController {
   constructor(private readonly errors: ErrorLogsService) {}
@@ -33,13 +36,16 @@ export class ErrorLogsController {
     return this.errors.record(dto);
   }
 
-  /** Admin lists all errors with filters. */
+  /** Admin lists all errors with filters. ?reviewed=true|false. Total in X-Total-Count. */
   @Get()
   @UseGuards(JwtAuthGuard)
   @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'List all client errors (admin)' })
-  findAll(@Query() dto: ErrorLogQueryDto) {
-    return this.errors.findAll(dto);
+  @ApiOperation({ summary: 'List all client errors (admin). Total in X-Total-Count.' })
+  async findAll(@Query() dto: ErrorLogQueryDto, @Res({ passthrough: true }) res: Response) {
+    const [items, total] = await this.errors.findAll(dto);
+    res.setHeader('X-Total-Count', String(total));
+    res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
+    return items;
   }
 
   /** Admin gets one error detail. */
@@ -56,10 +62,7 @@ export class ErrorLogsController {
   @UseGuards(JwtAuthGuard)
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Mark error as reviewed (admin)' })
-  markReviewed(
-    @Param('id') id: string,
-    @Body() dto: MarkReviewedDto,
-  ) {
+  markReviewed(@Param('id') id: string, @Body() dto: MarkReviewedDto) {
     return this.errors.markReviewed(id, dto);
   }
 

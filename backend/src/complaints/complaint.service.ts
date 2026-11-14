@@ -6,7 +6,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { User } from '../users/user.entity';
 import { Complaint } from './complaint.entity';
 import {
   ComplaintQueryDto,
@@ -15,12 +16,18 @@ import {
 } from './complaint.dto';
 import { RealtimeService } from '../realtime/realtime.service';
 
+/** Basic info about who filed the complaint, attached for admin screens. */
+export type ComplaintWithPerson = Complaint & {
+  person: { name: string; phone: string; role: string } | null;
+};
+
 @Injectable()
 export class ComplaintsService {
   private readonly logger = new Logger(ComplaintsService.name);
 
   constructor(
     @InjectRepository(Complaint) private readonly complaints: Repository<Complaint>,
+    @InjectRepository(User) private readonly users: Repository<User>,
     private readonly realtime: RealtimeService,
   ) {}
 
@@ -51,7 +58,7 @@ export class ComplaintsService {
   }
 
   /** Get all complaints with filters (admin view). */
-  async findAll(dto: ComplaintQueryDto): Promise<[Complaint[], number]> {
+  async findAll(dto: ComplaintQueryDto): Promise<[ComplaintWithPerson[], number]> {
     const query = this.complaints.createQueryBuilder('complaint');
 
     if (dto.status) {
@@ -65,7 +72,24 @@ export class ComplaintsService {
     query.skip(((dto.page ?? 1) - 1) * (dto.limit ?? 20));
     query.take(Math.min(dto.limit ?? 20, 100));
 
-    return query.getManyAndCount();
+    const [rows, total] = await query.getManyAndCount();
+    return [await this.withPerson(rows), total];
+  }
+
+  /** Attach the filer's name/phone/role in one batched query. */
+  private async withPerson(rows: Complaint[]): Promise<ComplaintWithPerson[]> {
+    const ids = [...new Set(rows.map((r) => r.userId))];
+    const users = ids.length
+      ? await this.users.find({
+          where: { id: In(ids) },
+          select: { id: true, name: true, phone: true, role: true },
+        })
+      : [];
+    const byId = new Map(users.map((u) => [u.id, u]));
+    return rows.map((r) => {
+      const u = byId.get(r.userId);
+      return { ...r, person: u ? { name: u.name, phone: u.phone, role: u.role } : null };
+    });
   }
 
   /** Get one complaint by ID. */

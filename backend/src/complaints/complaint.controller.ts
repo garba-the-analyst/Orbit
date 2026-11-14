@@ -7,9 +7,10 @@ import {
   Post,
   Put,
   Query,
-  Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthUser, CurrentUser, Public, Roles } from '../common/auth.decorators';
 import { Role } from '../common/enums';
@@ -45,12 +46,15 @@ export class ComplaintsController {
     return this.complaints.findByUser(user.id);
   }
 
-  /** Admin lists all complaints with filters. */
+  /** Admin lists all complaints with filters. Total in X-Total-Count. */
   @Get()
   @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'List all complaints (admin)' })
-  findAll(@Query() dto: ComplaintQueryDto) {
-    return this.complaints.findAll(dto);
+  @ApiOperation({ summary: 'List all complaints (admin). Total in X-Total-Count.' })
+  async findAll(@Query() dto: ComplaintQueryDto, @Res({ passthrough: true }) res: Response) {
+    const [items, total] = await this.complaints.findAll(dto);
+    res.setHeader('X-Total-Count', String(total));
+    res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
+    return items;
   }
 
   /** Admin gets one complaint. */

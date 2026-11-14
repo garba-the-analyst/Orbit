@@ -1,10 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
-  IsEnum,
-  IsNotEmpty,
+  IsBoolean,
   IsOptional,
   IsString,
-  Length,
+  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -39,14 +39,15 @@ export class ClientErrorDto {
   @MaxLength(200)
   userAgent?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   userId?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'CUSTOMER' })
   @IsOptional()
   @IsString()
+  @MaxLength(20)
   role?: string;
 }
 
@@ -79,6 +80,14 @@ export class ErrorLogQueryDto {
   @IsString()
   userId?: string;
 
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === undefined || value === null || value === '' ? undefined : value === 'true' || value === true,
+  )
+  @IsBoolean()
+  reviewed?: boolean;
+
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   page?: number;
@@ -89,8 +98,7 @@ export class ErrorLogQueryDto {
 }
 
 export class MarkReviewedDto {
-  @ApiProperty()
-  @IsString()
-  @MinLength(1)
+  @ApiProperty({ example: true })
+  @IsBoolean()
   reviewed: boolean;
 }

@@ -21,13 +21,12 @@ const error = ref('');
 async function load() {
   error.value = '';
   try {
-    const { items: data, total: count } = await api.admin.errorLogs(tab.value);
+    const reviewed = tab.value === 'all' ? undefined : tab.value === 'unreviewed' ? false : true;
+    const { items: data, total: count } = await api.admin.errorLogs(reviewed);
     items.value = data;
     total.value = count;
-    if (tab.value === 'all' || tab.value === 'unreviewed') {
-      const unreviewed = data.filter((e) => !e.reviewed).length;
-      badges.adminErrors = unreviewed;
-    }
+    if (tab.value === 'all') badges.adminErrors = data.filter((e) => !e.reviewed).length;
+    else if (tab.value === 'unreviewed') badges.adminErrors = count;
   } catch (e) {
     error.value = errorMessage(e);
   } finally {

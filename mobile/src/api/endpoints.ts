@@ -234,9 +234,9 @@ export const api = {
       put<ComplaintView>(`/complaints/${id}`, body),
     deleteComplaint: (id: string) => del<{ ok: true }>(`/complaints/${id}`),
 
-    // Error logs (admin view)
-    errorLogs: (status?: string) =>
-      getPage<ErrorLogView>(`/error-logs${qs({ status })}`),
+    // Error logs (admin view) - reviewed is true | false | undefined (= all)
+    errorLogs: (reviewed?: boolean) =>
+      getPage<ErrorLogView>(`/error-logs${qs({ reviewed: reviewed === undefined ? undefined : String(reviewed) })}`),
     errorLog: (id: string) => get<ErrorLogView>(`/error-logs/${id}`),
     markErrorReviewed: (id: string, reviewed: boolean) =>
       put<ErrorLogView>(`/error-logs/${id}/reviewed`, { reviewed }),
