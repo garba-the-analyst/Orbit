@@ -75,12 +75,12 @@ const routes: RouteRecordRaw[] = [
       { path: 'kpis', component: () => import('../pages/admin/KpisPage.vue') },
       { path: 'more', component: () => import('../pages/admin/MorePage.vue') },
       { path: 'account', component: () => import('../pages/shared/AccountPage.vue') },
+      { path: 'complaints', component: () => import('../pages/admin/ComplaintsPage.vue') },
     ],
   },
   { path: '/a/orders', component: () => import('../pages/admin/AdminOrdersPage.vue') },
   { path: '/a/promos', component: () => import('../pages/admin/PromosPage.vue') },
   { path: '/a/admins', component: () => import('../pages/admin/AdminsPage.vue') },
-  { path: '/a/complaints', component: () => import('../pages/admin/ComplaintsPage.vue') },
 
   // ---- Shared ------------------------------------------------------------------------------------
   { path: '/n', component: () => import('../pages/shared/NotificationsPage.vue') },

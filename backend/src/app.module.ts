@@ -35,6 +35,7 @@ import { Shop } from './shops/shop.entity';
 import { AccountModule } from './account/account.module';
 import { AuditInterceptor } from './audit/audit.service';
 import { AuditModule } from './audit/audit.module';
+import { Complaint } from './complaints/complaint.entity';
 import { ComplaintsModule } from './complaints/complaint.module';
 import { LegalModule } from './legal/legal.controller';
 import { MailModule } from './mail/mail.service';
@@ -81,7 +82,7 @@ function databaseOptions() {
 @Module({
   imports: [
     TypeOrmModule.forRoot(databaseOptions()),
-    TypeOrmModule.forFeature([User, Shop, Product, Vehicle]),
+    TypeOrmModule.forFeature([User, Shop, Product, Vehicle, Complaint]),
     JwtModule.register({
       global: true,
       secret: config.jwt.secret,
