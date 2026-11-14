@@ -1,6 +1,8 @@
 import { PasswordReset } from '../auth/password-reset.entity';
 import { AuditLog } from '../audit/audit.entity';
 import { LedgerEntry } from '../earnings/ledger-entry.entity';
+import { Complaint } from '../complaints/complaint.entity';
+import { ErrorLog } from '../error-logs/error-log.entity';
 import { Favourite } from '../favourites/favourite.entity';
 import { SavedPlace } from '../geo/place.entity';
 import { Notification } from '../notifications/notification.entity';
@@ -18,5 +20,5 @@ import { Vehicle } from '../vehicles/vehicle.entity';
 /** Every table. Add new entities here: the app and the migration tool both read this list. */
 export const entities = [
   User, Shop, Product, Order, OrderItem, Payment, LedgerEntry, Upload, Document, Notification, Favourite, ShopRider,
-  Vehicle, SavedPlace, Trip, TripOffer, PromoCode, PromoRedemption, SosAlert, PasswordReset, AuditLog,
+  Vehicle, SavedPlace, Trip, TripOffer, PromoCode, PromoRedemption, SosAlert, PasswordReset, AuditLog, Complaint, ErrorLog,
 ];

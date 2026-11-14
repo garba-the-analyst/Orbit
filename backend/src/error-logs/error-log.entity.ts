@@ -8,7 +8,7 @@ export class ErrorLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Index()
+  @Index('IDX_error_logs_createdAt')
   @CreateDateColumn()
   createdAt: Date;
 
@@ -29,6 +29,7 @@ export class ErrorLog {
   stack: string | null;
 
   /** The user who hit the error, if signed in. */
+  @Index('IDX_error_logs_userId')
   @Column({ type: UUID_TYPE, nullable: true })
   userId: string | null;
 

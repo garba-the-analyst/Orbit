@@ -7,7 +7,6 @@ export class Complaint {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Index()
   @CreateDateColumn()
   createdAt: Date;
 
@@ -15,7 +14,7 @@ export class Complaint {
   updatedAt: Date;
 
   /** Who filed the complaint. */
-  @Index()
+  @Index('IDX_complaints_userId')
   @Column({ type: UUID_TYPE })
   userId: string;
 
