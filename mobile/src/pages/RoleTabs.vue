@@ -20,6 +20,7 @@ import {
   alertCircleOutline,
   ellipsisHorizontalOutline,
   navigateOutline,
+  chatbubbleOutline,
 } from 'ionicons/icons';
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
@@ -73,6 +74,7 @@ const tabs = computed<Tab[]>(() => {
         { tab: 'queue', href: '/a/queue', label: 'Verify', icon: listOutline, badge: badges.adminQueue },
         { tab: 'trips', href: '/a/trips', label: 'Trips', icon: carSportOutline },
         { tab: 'safety', href: '/a/safety', label: 'Safety', icon: alertCircleOutline, badge: badges.adminSos },
+        { tab: 'complaints', href: '/a/complaints', label: 'Complaints', icon: chatbubbleOutline, badge: badges.adminComplaints },
         { tab: 'kpis', href: '/a/kpis', label: 'KPIs', icon: speedometerOutline },
         { tab: 'more', href: '/a/more', label: 'More', icon: ellipsisHorizontalOutline },
       ];

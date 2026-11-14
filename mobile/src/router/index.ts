@@ -32,6 +32,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/c/basket', component: () => import('../pages/customer/BasketPage.vue') },
   { path: '/c/pay/:id', component: () => import('../pages/customer/PayPage.vue') },
   { path: '/c/order/:id', component: () => import('../pages/customer/OrderPage.vue') },
+  { path: '/c/complaints', component: () => import('../pages/customer/ComplaintPage.vue') },
 
   // ---- Merchant --------------------------------------------------------------------------------
   {
@@ -79,6 +80,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/a/orders', component: () => import('../pages/admin/AdminOrdersPage.vue') },
   { path: '/a/promos', component: () => import('../pages/admin/PromosPage.vue') },
   { path: '/a/admins', component: () => import('../pages/admin/AdminsPage.vue') },
+  { path: '/a/complaints', component: () => import('../pages/admin/ComplaintsPage.vue') },
 
   // ---- Shared ------------------------------------------------------------------------------------
   { path: '/n', component: () => import('../pages/shared/NotificationsPage.vue') },

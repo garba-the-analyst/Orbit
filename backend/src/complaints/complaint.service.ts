@@ -13,6 +13,7 @@ import {
   CreateComplaintDto,
   UpdateComplaintDto,
 } from './complaint.dto';
+import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class ComplaintsService {
@@ -20,6 +21,7 @@ export class ComplaintsService {
 
   constructor(
     @InjectRepository(Complaint) private readonly complaints: Repository<Complaint>,
+    private readonly realtime: RealtimeService,
   ) {}
 
   /** File a new complaint (customer). */
@@ -34,7 +36,10 @@ export class ComplaintsService {
       message: dto.message,
       status: 'OPEN',
     });
-    return this.complaints.save(complaint);
+    const saved = await this.complaints.save(complaint);
+    // Notify admins of new complaint
+    void this.realtime.adminChanged();
+    return saved;
   }
 
   /** Get complaints for a specific user (customer view). */
@@ -89,12 +94,16 @@ export class ComplaintsService {
       complaint.adminResponse = dto.adminResponse;
     }
 
-    return this.complaints.save(complaint);
+    const saved = await this.complaints.save(complaint);
+    // Notify admins of update
+    void this.realtime.adminChanged();
+    return saved;
   }
 
   /** Delete a complaint (admin only). */
   async remove(id: string): Promise<void> {
     const complaint = await this.findOne(id);
     await this.complaints.remove(complaint);
+    void this.realtime.adminChanged();
   }
 }

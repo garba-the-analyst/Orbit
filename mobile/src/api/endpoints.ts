@@ -28,6 +28,7 @@ import type {
   QuoteBody,
   RegisterBody,
   RiderShopLink,
+  ComplaintView,
   RouteResult,
   SavedPlace,
   Shop,
@@ -66,6 +67,11 @@ export const api = {
   changePassword: (currentPassword: string, newPassword: string) => post<AuthResult | { ok: true }>('/me/password', { currentPassword, newPassword }),
   exportData: () => get<Record<string, unknown>>('/me/export'),
   deleteAccount: (password: string) => post<{ ok: true }>('/me/delete', { password }),
+
+  // ---- Complaints -------------------------------------------------------------------------------
+  complaints: () => get<ComplaintView[]>('/complaints/mine'),
+  createComplaint: (body: { category: string; subject: string; message: string }) =>
+    post<ComplaintView>('/complaints', body),
 
   // ---- Uploads (pictures are public; documents are private to admins) -------------------------
   uploadImage: (kind: UploadKind, file: Blob, name?: string) => upload<UploadResult>(`/uploads?kind=${kind}`, file, name),
@@ -218,5 +224,13 @@ export const api = {
     reactivateAdmin: (id: string) => post<{ ok: true }>(`/admin/admins/${id}/reactivate`),
     resetAdminPassword: (id: string, temporaryPassword: string) => post<{ ok: true }>(`/admin/admins/${id}/reset-password`, { temporaryPassword }),
     removeAdmin: (id: string) => del<{ ok: true }>(`/admin/admins/${id}`),
+
+    // Complaints (admin)
+    complaints: (status?: string) =>
+      getPage<ComplaintView>(`/complaints${qs({ status })}`),
+    complaint: (id: string) => get<ComplaintView>(`/complaints/${id}`),
+    updateComplaint: (id: string, body: { status?: string; adminResponse?: string }) =>
+      put<ComplaintView>(`/complaints/${id}`, body),
+    deleteComplaint: (id: string) => del<{ ok: true }>(`/complaints/${id}`),
   },
 };

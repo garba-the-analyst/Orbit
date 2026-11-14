@@ -572,6 +572,21 @@ export interface SosItem {
   trip: { id: string; code: string; status: string; kind: string; pickup: string; drop: string; vehicle: unknown } | null;
 }
 
+export interface ComplaintView {
+  id: string;
+  userId: string;
+  category: 'ORDER' | 'DELIVERY' | 'RIDER' | 'MERCHANT' | 'PAYMENT' | 'APP' | 'OTHER';
+  subject: string;
+  message: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'REJECTED';
+  adminResponse: string | null;
+  handledById: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  person: { name: string; phone: string; role: string } | null;
+}
+
 export interface Promo {
   id: string;
   code: string;

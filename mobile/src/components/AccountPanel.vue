@@ -180,6 +180,7 @@ async function signOut() {
       <ul class="list menu">
         <li><button class="rowlink" type="button" @click="replayTour">Take the app tour</button></li>
         <li><button class="rowlink" type="button" @click="router.push('/n')">Notifications</button></li>
+        <li><button class="rowlink" type="button" @click="router.push('/c/complaints')">Report a problem</button></li>
         <li v-if="auth.role !== 'ADMIN'"><button class="rowlink" type="button" @click="router.push('/change-password')">Change password</button></li>
         <li v-else><button class="rowlink" type="button" @click="router.push('/change-password')">Change password</button></li>
         <li><button class="rowlink" type="button" @click="exportData">Download my data</button></li>
