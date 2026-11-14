@@ -18,6 +18,7 @@ import {
   homeOutline,
   carSportOutline,
   alertCircleOutline,
+  triangleOutline,
   ellipsisHorizontalOutline,
   navigateOutline,
   chatbubbleOutline,
@@ -75,6 +76,7 @@ const tabs = computed<Tab[]>(() => {
         { tab: 'trips', href: '/a/trips', label: 'Trips', icon: carSportOutline },
         { tab: 'safety', href: '/a/safety', label: 'Safety', icon: alertCircleOutline, badge: badges.adminSos },
         { tab: 'complaints', href: '/a/complaints', label: 'Complaints', icon: chatbubbleOutline, badge: badges.adminComplaints },
+        { tab: 'errors', href: '/a/error-logs', label: 'Errors', icon: triangleOutline, badge: badges.adminErrors },
         { tab: 'kpis', href: '/a/kpis', label: 'KPIs', icon: speedometerOutline },
         { tab: 'more', href: '/a/more', label: 'More', icon: ellipsisHorizontalOutline },
       ];

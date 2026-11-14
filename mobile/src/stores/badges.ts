@@ -10,5 +10,6 @@ export const useBadges = defineStore('badges', () => {
   const customerActive = ref(0);
   const adminSos = ref(0);
   const adminComplaints = ref(0);
-  return { merchantNew, riderJobs, riderActive, adminQueue, customerActive, adminSos, adminComplaints };
+  const adminErrors = ref(0);
+  return { merchantNew, riderJobs, riderActive, adminQueue, customerActive, adminSos, adminComplaints, adminErrors };
 });

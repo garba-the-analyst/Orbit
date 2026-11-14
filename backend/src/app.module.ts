@@ -37,6 +37,8 @@ import { AuditInterceptor } from './audit/audit.service';
 import { AuditModule } from './audit/audit.module';
 import { Complaint } from './complaints/complaint.entity';
 import { ComplaintsModule } from './complaints/complaint.module';
+import { ErrorLog } from './error-logs/error-log.entity';
+import { ErrorLogsModule } from './error-logs/error-log.module';
 import { LegalModule } from './legal/legal.controller';
 import { MailModule } from './mail/mail.service';
 import { TripsModule } from './trips/trips.module';
@@ -110,6 +112,7 @@ function databaseOptions() {
     AuditModule,
     AccountModule,
     ComplaintsModule,
+    ErrorLogsModule,
   ],
   controllers: [AppController],
   providers: [

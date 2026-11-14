@@ -9,6 +9,8 @@ import { useAppConfig } from './stores/appConfig';
 import { useBoot } from './stores/boot';
 import { useTheme } from './stores/theme';
 import { useDeviceTimezone } from './lib/format';
+import { initErrorLogging } from './lib/error-logger';
+import { api } from './api/endpoints';
 
 /* Ionic core CSS (layout and structure only; ORBIT's look lives in /theme) */
 import '@ionic/vue/css/core.css';
@@ -27,6 +29,29 @@ import './theme/base.css';
 
 const pinia = createPinia();
 const app = createApp(App).use(IonicVue, { mode: 'md', rippleEffect: false, swipeBackEnabled: true }).use(pinia).use(router);
+
+// Capture Vue rendering errors and send to backend
+app.config.errorHandler = (err: unknown, _instance, _info) => {
+  void (async () => {
+    const auth = useAuth(pinia);
+    const e = err as Error;
+    try {
+      await api.reportError({
+        path: window.location.pathname,
+        method: 'CLIENT',
+        message: e?.message ?? String(err),
+        stack: e?.stack,
+        userAgent: navigator.userAgent,
+        userId: auth.user?.id ?? null,
+        role: auth.user?.role ?? null,
+      });
+    } catch {
+      /* ignore */
+    }
+  })();
+};
+
+initErrorLogging();
 
 useDeviceTimezone();
 useTheme(pinia).init();

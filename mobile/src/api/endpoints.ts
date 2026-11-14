@@ -29,6 +29,7 @@ import type {
   RegisterBody,
   RiderShopLink,
   ComplaintView,
+  ErrorLogView,
   RouteResult,
   SavedPlace,
   Shop,
@@ -232,5 +233,24 @@ export const api = {
     updateComplaint: (id: string, body: { status?: string; adminResponse?: string }) =>
       put<ComplaintView>(`/complaints/${id}`, body),
     deleteComplaint: (id: string) => del<{ ok: true }>(`/complaints/${id}`),
+
+    // Error logs (admin view)
+    errorLogs: (status?: string) =>
+      getPage<ErrorLogView>(`/error-logs${qs({ status })}`),
+    errorLog: (id: string) => get<ErrorLogView>(`/error-logs/${id}`),
+    markErrorReviewed: (id: string, reviewed: boolean) =>
+      put<ErrorLogView>(`/error-logs/${id}/reviewed`, { reviewed }),
+    deleteErrorLog: (id: string) => del<{ ok: true }>(`/error-logs/${id}`),
   },
+
+  // Error logs (client-side error reporting - public)
+  reportError: (body: {
+    path: string;
+    method: string;
+    message: string;
+    stack?: string;
+    userAgent?: string;
+    userId?: string | null;
+    role?: string | null;
+  }) => post<{ ok: true }>('/error-logs', body),
 };

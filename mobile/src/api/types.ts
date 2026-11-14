@@ -587,6 +587,20 @@ export interface ComplaintView {
   person: { name: string; phone: string; role: string } | null;
 }
 
+export interface ErrorLogView {
+  id: string;
+  createdAt: string;
+  path: string;
+  method: string;
+  message: string;
+  stack: string | null;
+  userId: string | null;
+  role: string | null;
+  userAgent: string | null;
+  reviewed: boolean;
+  person: { name: string; phone: string; role: string } | null;
+}
+
 export interface Promo {
   id: string;
   code: string;

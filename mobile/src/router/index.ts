@@ -76,6 +76,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'more', component: () => import('../pages/admin/MorePage.vue') },
       { path: 'account', component: () => import('../pages/shared/AccountPage.vue') },
       { path: 'complaints', component: () => import('../pages/admin/ComplaintsPage.vue') },
+      { path: 'error-logs', component: () => import('../pages/admin/ErrorLogsPage.vue') },
     ],
   },
   { path: '/a/orders', component: () => import('../pages/admin/AdminOrdersPage.vue') },
